@@ -1,0 +1,5 @@
+# Mi primer programa en Mux
+print("¡Hola, Mundo!")
+
+let nombre = "Mux"
+print("Bienvenido a " + nombre)

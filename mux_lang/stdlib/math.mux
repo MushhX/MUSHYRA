@@ -1,0 +1,52 @@
+# Mux Math Library
+# Creador: MushhX
+# Librería matemática
+
+let pi = 3.14159265359
+let e = 2.71828182846
+
+func abs(x)
+    if x < 0
+        return -x
+    end
+    return x
+end
+
+func max(a, b)
+    if a > b
+        return a
+    end
+    return b
+end
+
+func min(a, b)
+    if a < b
+        return a
+    end
+    return b
+end
+
+func pow(base, exp)
+    let resultado = 1
+    let i = 0
+    while i < exp
+        resultado = resultado * base
+        i = i + 1
+    end
+    return resultado
+end
+
+func sqrt(x)
+    if x < 0
+        print("❌ No se puede calcular raíz cuadrada de número negativo")
+        return 0
+    end
+    
+    let guess = x / 2
+    let i = 0
+    while i < 10
+        guess = (guess + x / guess) / 2
+        i = i + 1
+    end
+    return guess
+end

@@ -1,0 +1,24 @@
+# Bot de Discord en Mux
+# Creador: MushhX
+
+import discord_bot
+
+let token = "TU_TOKEN_AQUI"
+let bot = crear_bot(token)
+
+# Comando de saludo
+func saludar_handler()
+    print("¡Hola desde Discord!")
+end
+
+comando(bot, "hola", saludar_handler)
+
+# Comando de información
+func info_handler()
+    print("Bot creado con Mux por MushhX")
+end
+
+comando(bot, "info", info_handler)
+
+print("Iniciando bot de Discord...")
+iniciar_bot(bot)

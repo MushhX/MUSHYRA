@@ -1,0 +1,50 @@
+# Listas y Diccionarios en Mux
+# Creador: MushhX
+
+# Listas
+let numeros = [1, 2, 3, 4, 5]
+print("Lista de números:")
+print(numeros)
+
+let frutas = ["manzana", "banana", "naranja"]
+print("Frutas:")
+print(frutas)
+
+# Acceso por índice
+print("Primera fruta:")
+print(frutas[0])
+
+# Modificar elemento
+frutas[1] = "pera"
+print("Frutas modificadas:")
+print(frutas)
+
+# Métodos de lista
+frutas.append("uva")
+print("Después de append:")
+print(frutas)
+
+# Diccionarios
+let persona = {"nombre": "Ana", "edad": 25, "ciudad": "Madrid"}
+print("Persona:")
+print(persona)
+
+print("Nombre:")
+print(persona["nombre"])
+
+# Modificar diccionario
+persona["edad"] = 26
+print("Edad actualizada:")
+print(persona["edad"])
+
+# Bucle for con listas
+print("Iterando frutas:")
+for fruta in frutas
+    print("- " + fruta)
+end
+
+# Range
+print("Números del 0 al 4:")
+for i in range(5)
+    print(i)
+end

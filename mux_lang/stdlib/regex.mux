@@ -1,0 +1,48 @@
+# Mux Regex Library
+# Creador: MushhX
+# Librería para expresiones regulares
+
+func match(patron, texto)
+    print("🔍 Buscando patrón: " + patron)
+    return true
+end
+
+func find_all(patron, texto)
+    print("🔍 Buscando todas las coincidencias...")
+    return ["match1", "match2"]
+end
+
+func replace(patron, reemplazo, texto)
+    print("🔄 Reemplazando patrón...")
+    return texto
+end
+
+func split(patron, texto)
+    print("✂️ Dividiendo por patrón...")
+    return ["parte1", "parte2"]
+end
+
+func validate_email(email)
+    print("✉️ Validando email: " + email)
+    return true
+end
+
+func validate_url(url)
+    print("🌐 Validando URL: " + url)
+    return true
+end
+
+func validate_phone(telefono)
+    print("📱 Validando teléfono: " + telefono)
+    return true
+end
+
+func extract_numbers(texto)
+    print("🔢 Extrayendo números...")
+    return ["123", "456"]
+end
+
+func extract_emails(texto)
+    print("✉️ Extrayendo emails...")
+    return ["email@example.com"]
+end

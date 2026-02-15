@@ -1,0 +1,35 @@
+# Matemáticas en Mux
+# Creador: MushhX
+
+import math
+
+print("=== Librería Matemática ===")
+
+print("Pi:")
+print(pi)
+
+print("e:")
+print(e)
+
+# Valor absoluto
+let negativo = -15
+print("Valor absoluto de -15:")
+print(abs(negativo))
+
+# Máximo y mínimo
+print("Máximo entre 10 y 25:")
+print(max(10, 25))
+
+print("Mínimo entre 10 y 25:")
+print(min(10, 25))
+
+# Potencia
+print("2 elevado a 8:")
+print(pow(2, 8))
+
+# Raíz cuadrada
+print("Raíz cuadrada de 16:")
+print(sqrt(16))
+
+print("Raíz cuadrada de 25:")
+print(sqrt(25))

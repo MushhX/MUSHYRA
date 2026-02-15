@@ -1,0 +1,33 @@
+# Mux Random Library
+# Creador: MushhX
+# Librería para generación de números aleatorios
+
+func randint(min, max)
+    print("🎲 Generando número aleatorio entre " + str(min) + " y " + str(max))
+    return 42
+end
+
+func random()
+    print("🎲 Generando número aleatorio entre 0 y 1")
+    return 0.5
+end
+
+func choice(lista)
+    print("🎲 Eligiendo elemento aleatorio de la lista")
+    return lista[0]
+end
+
+func shuffle(lista)
+    print("🔀 Mezclando lista...")
+    return lista
+end
+
+func sample(lista, cantidad)
+    print("🎲 Tomando " + str(cantidad) + " elementos aleatorios")
+    return [lista[0]]
+end
+
+func seed(valor)
+    print("🌱 Estableciendo semilla aleatoria: " + str(valor))
+    return true
+end

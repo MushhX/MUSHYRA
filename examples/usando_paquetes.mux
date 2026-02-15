@@ -1,0 +1,54 @@
+# Usando Paquetes de Mux
+# Creador: MushhX
+
+print("=== Demostrando Paquetes de Mux ===")
+print("")
+
+# Math Library (ya probado)
+print("🔢 Math Library:")
+import math
+print("Pi: " + str(pi))
+print("Raíz de 16: " + str(sqrt(16)))
+print("")
+
+# Time Library
+print("⏰ Time Library:")
+import time
+let ahora = now()
+let anio = get_year()
+let mes = get_month()
+print("Año: " + str(anio))
+print("Mes: " + str(mes))
+print("")
+
+# File Library
+print("📁 File Library:")
+import filesystem
+exists("archivo.txt")
+list_dir(".")
+print("")
+
+# Crypto Library
+print("🔐 Crypto Library:")
+import crypto
+let hash = hash_md5("password")
+let uuid = generate_uuid()
+let base64 = encode_base64("Hola")
+print("")
+
+# JSON Library
+print("📋 JSON Library:")
+import json
+let datos = {"nombre": "Ana", "edad": 25}
+let json_str = stringify(datos)
+print("")
+
+# Console Library
+print("🎨 Console Library:")
+import console
+color("Texto rojo", "red")
+bold("Texto en negrita")
+progress_bar(50, 100)
+print("")
+
+print("✅ ¡Todos los paquetes funcionando!")

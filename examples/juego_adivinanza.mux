@@ -1,0 +1,40 @@
+# Juego de Adivinanza en Mux
+# Creador: MushhX
+
+print("=== Juego de Adivinanza ===")
+print("Piensa en un número del 1 al 100")
+print("Yo intentaré adivinarlo")
+print("")
+
+let minimo = 1
+let maximo = 100
+let intentos = 0
+let adivinado = false
+
+while !adivinado
+    let medio = (minimo + maximo) / 2
+    let intento = int(medio)
+    intentos = intentos + 1
+    
+    print("¿Es " + str(intento) + "?")
+    print("(1) Muy bajo")
+    print("(2) Muy alto")
+    print("(3) ¡Correcto!")
+    
+    let respuesta = input("Tu respuesta: ")
+    let resp_num = int(respuesta)
+    
+    if resp_num == 1
+        minimo = intento + 1
+    elif resp_num == 2
+        maximo = intento - 1
+    elif resp_num == 3
+        adivinado = true
+        print("")
+        print("¡Adiviné en " + str(intentos) + " intentos!")
+    else
+        print("Respuesta no válida")
+    end
+    
+    print("")
+end

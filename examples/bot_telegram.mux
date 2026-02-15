@@ -1,0 +1,26 @@
+# Bot de Telegram en Mux
+# Creador: MushhX
+
+import telegram_bot
+
+let token = "TU_TOKEN_AQUI"
+let bot = crear_bot(token)
+
+# Comando start
+func start_handler()
+    print("¡Bienvenido al bot de Telegram!")
+end
+
+comando(bot, "start", start_handler)
+
+# Comando ayuda
+func ayuda_handler()
+    print("Comandos disponibles:")
+    print("/start - Iniciar bot")
+    print("/ayuda - Ver ayuda")
+end
+
+comando(bot, "ayuda", ayuda_handler)
+
+print("Iniciando bot de Telegram...")
+iniciar_bot(bot)

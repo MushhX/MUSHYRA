@@ -1,0 +1,43 @@
+# Mux Database Library
+# Creador: MushhX
+# Librería para bases de datos simples
+
+func connect(ruta)
+    print("🔌 Conectando a base de datos: " + ruta)
+    return "db_connection"
+end
+
+func create_table(nombre, columnas)
+    print("📊 Creando tabla: " + nombre)
+    return true
+end
+
+func insert(tabla, datos)
+    print("➕ Insertando datos en: " + tabla)
+    return 1
+end
+
+func select(tabla, condicion)
+    print("🔍 Consultando tabla: " + tabla)
+    return [{"id": 1, "nombre": "Ana"}]
+end
+
+func update(tabla, datos, condicion)
+    print("✏️ Actualizando tabla: " + tabla)
+    return 1
+end
+
+func delete(tabla, condicion)
+    print("🗑️ Eliminando de tabla: " + tabla)
+    return 1
+end
+
+func close(conexion)
+    print("🔌 Cerrando conexión a base de datos")
+    return true
+end
+
+func execute(query)
+    print("⚡ Ejecutando query: " + query)
+    return true
+end

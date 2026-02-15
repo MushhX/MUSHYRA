@@ -1,0 +1,73 @@
+# Lista de Tareas en Mux
+# Creador: MushhX
+
+let tareas = []
+let continuar = true
+
+func mostrar_menu()
+    print("")
+    print("=== Lista de Tareas ===")
+    print("1. Ver tareas")
+    print("2. Agregar tarea")
+    print("3. Completar tarea")
+    print("4. Salir")
+    print("")
+end
+
+func ver_tareas()
+    if len(tareas) == 0
+        print("No hay tareas pendientes")
+    else
+        print("Tareas pendientes:")
+        let i = 0
+        for tarea in tareas
+            print(str(i + 1) + ". " + tarea)
+            i = i + 1
+        end
+    end
+end
+
+func agregar_tarea()
+    let nueva = input("Nueva tarea: ")
+    tareas.append(nueva)
+    print("✓ Tarea agregada")
+end
+
+func completar_tarea()
+    if len(tareas) == 0
+        print("No hay tareas para completar")
+        return 0
+    end
+    
+    ver_tareas()
+    let num = input("Número de tarea completada: ")
+    let indice = int(num) - 1
+    
+    if indice >= 0 && indice < len(tareas)
+        let completada = tareas.pop(indice)
+        print("✓ Completada: " + completada)
+    else
+        print("Número de tarea inválido")
+    end
+end
+
+print("¡Bienvenido a tu Lista de Tareas!")
+
+while continuar
+    mostrar_menu()
+    let opcion = input("Opción: ")
+    let opt_num = int(opcion)
+    
+    if opt_num == 1
+        ver_tareas()
+    elif opt_num == 2
+        agregar_tarea()
+    elif opt_num == 3
+        completar_tarea()
+    elif opt_num == 4
+        continuar = false
+        print("¡Hasta luego!")
+    else
+        print("Opción no válida")
+    end
+end

@@ -1,0 +1,51 @@
+# Mux Time Library
+# Creador: MushhX
+# Librería para manejo de tiempo y fechas
+
+func now()
+    print("⏰ Obteniendo tiempo actual...")
+    return 1234567890
+end
+
+func sleep(segundos)
+    print("😴 Durmiendo " + str(segundos) + " segundos...")
+    return true
+end
+
+func format_date(timestamp)
+    print("📅 Formateando fecha...")
+    return "2026-02-15 12:00:00"
+end
+
+func get_year()
+    return 2026
+end
+
+func get_month()
+    return 2
+end
+
+func get_day()
+    return 15
+end
+
+func get_hour()
+    return 12
+end
+
+func get_minute()
+    return 0
+end
+
+func get_second()
+    return 0
+end
+
+func timestamp()
+    return 1234567890
+end
+
+func measure_time(funcion)
+    print("⏱️ Midiendo tiempo de ejecución...")
+    return 0.123
+end

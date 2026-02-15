@@ -1,0 +1,45 @@
+Metadata-Version: 2.4
+Name: mux-lang
+Version: 1.0.0
+Summary: Lenguaje de programación moderno, accesible y ligero
+Home-page: https://github.com/MushhX/Mux
+Author: MushhX
+Author-email: mushhdev@gmail.com
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.8
+License-File: LICENSE
+Requires-Dist: requests>=2.31.0
+Requires-Dist: colorama>=0.4.6
+Provides-Extra: web
+Requires-Dist: flask>=3.0.0; extra == "web"
+Requires-Dist: jinja2>=3.1.2; extra == "web"
+Provides-Extra: discord
+Requires-Dist: discord.py>=2.3.0; extra == "discord"
+Provides-Extra: telegram
+Requires-Dist: python-telegram-bot>=20.0; extra == "telegram"
+Provides-Extra: whatsapp
+Requires-Dist: twilio>=8.10.0; extra == "whatsapp"
+Provides-Extra: full
+Requires-Dist: flask>=3.0.0; extra == "full"
+Requires-Dist: jinja2>=3.1.2; extra == "full"
+Requires-Dist: discord.py>=2.3.0; extra == "full"
+Requires-Dist: python-telegram-bot>=20.0; extra == "full"
+Requires-Dist: twilio>=8.10.0; extra == "full"
+Requires-Dist: pyinstaller>=6.0.0; extra == "full"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: home-page
+Dynamic: license-file
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

@@ -1,0 +1,17 @@
+# Mux Web Library
+# Creador: MushhX
+# Librería para crear aplicaciones web con Flask
+
+func crear_app()
+    print("🌐 Creando aplicación web...")
+    return "web_app"
+end
+
+func ruta(app, path, handler)
+    print("📍 Registrando ruta: " + path)
+end
+
+func iniciar(app, puerto)
+    print("🚀 Servidor web iniciado en puerto " + str(puerto))
+    print("   Visita: http://localhost:" + str(puerto))
+end

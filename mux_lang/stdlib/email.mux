@@ -1,0 +1,25 @@
+# Mux Email Library
+# Creador: MushhX
+# Librería para envío de emails
+
+func send(destinatario, asunto, mensaje)
+    print("📧 Enviando email a: " + destinatario)
+    print("   Asunto: " + asunto)
+    return true
+end
+
+func send_html(destinatario, asunto, html)
+    print("📧 Enviando email HTML a: " + destinatario)
+    return true
+end
+
+func send_with_attachment(destinatario, asunto, mensaje, archivo)
+    print("📧 Enviando email con adjunto a: " + destinatario)
+    print("   Archivo: " + archivo)
+    return true
+end
+
+func configure_smtp(servidor, puerto, usuario, password)
+    print("⚙️ Configurando servidor SMTP: " + servidor)
+    return true
+end

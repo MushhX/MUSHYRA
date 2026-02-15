@@ -1,0 +1,42 @@
+# Calculadora simple en Mux
+
+func calculadora(a, b, operacion)
+    if operacion == 1
+        return a + b
+    end
+    
+    if operacion == 2
+        return a - b
+    end
+    
+    if operacion == 3
+        return a * b
+    end
+    
+    if operacion == 4
+        if b == 0
+            print("Error: división por cero")
+            return 0
+        end
+        return a / b
+    end
+    
+    print("Operación no válida")
+    return 0
+end
+
+print("=== Calculadora Mux ===")
+let num1 = 15
+let num2 = 3
+
+print("Suma: ")
+print(calculadora(num1, num2, 1))
+
+print("Resta: ")
+print(calculadora(num1, num2, 2))
+
+print("Multiplicación: ")
+print(calculadora(num1, num2, 3))
+
+print("División: ")
+print(calculadora(num1, num2, 4))
