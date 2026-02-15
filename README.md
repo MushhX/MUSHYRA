@@ -197,9 +197,16 @@ pip install pyinstaller
 # Compilar
 python build_exe.py
 
-# Usar ejecutable
+# Usar ejecutable (Windows)
+.\dist\mux.exe examples\hola_mundo.mux
+
+# Usar ejecutable (Linux/macOS)
 ./dist/mux examples/hola_mundo.mux
 ```
+
+El ejecutable pesa solo **7.89 MB** y no requiere Python instalado.
+
+Ver [EXECUTABLE_GUIDE.md](EXECUTABLE_GUIDE.md) para más detalles.
 
 ## 📚 Ejemplos
 
@@ -293,6 +300,8 @@ Ver [UNIQUE_COMMANDS.md](UNIQUE_COMMANDS.md) para documentación completa.
 - [STDLIB_REFERENCE.md](STDLIB_REFERENCE.md) - Referencia de librería estándar
 - [UNIQUE_COMMANDS.md](UNIQUE_COMMANDS.md) - Comandos únicos de Mux
 - [BOTS_GUIDE.md](BOTS_GUIDE.md) - Guía para crear bots
+- [EXECUTABLE_GUIDE.md](EXECUTABLE_GUIDE.md) - Guía del ejecutable
+- [RELEASE_NOTES.md](RELEASE_NOTES.md) - Notas de lanzamiento
 - [ROADMAP.md](ROADMAP.md) - Plan de desarrollo
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Guía de contribución
 - [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) - Resumen del proyecto
@@ -336,7 +345,8 @@ Ver [ROADMAP.md](ROADMAP.md) para más detalles.
 - **Módulos stdlib**: 15
 - **Comandos únicos**: 11
 - **Características**: 70+
-- **Documentación**: 12 archivos
+- **Documentación**: 14 archivos
+- **Tamaño ejecutable**: 7.89 MB
 
 ## 🎓 Casos de Uso
 
