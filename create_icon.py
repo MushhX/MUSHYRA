@@ -1,0 +1,81 @@
+"""
+Script para crear un icono simple para Mux
+Creador: MushhX
+"""
+
+from PIL import Image, ImageDraw, ImageFont
+import os
+
+def create_mux_icon():
+    """Crear icono de Mux"""
+    
+    # Tamaños de icono estándar
+    sizes = [16, 32, 48, 64, 128, 256]
+    
+    # Crear imagen base (256x256)
+    size = 256
+    img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    
+    # Colores
+    bg_color = (41, 128, 185)  # Azul
+    text_color = (255, 255, 255)  # Blanco
+    
+    # Dibujar círculo de fondo
+    margin = 10
+    draw.ellipse([margin, margin, size-margin, size-margin], fill=bg_color)
+    
+    # Dibujar texto "M"
+    try:
+        # Intentar usar fuente del sistema
+        font_size = int(size * 0.6)
+        font = ImageFont.truetype("arial.ttf", font_size)
+    except:
+        # Usar fuente por defecto
+        font = ImageFont.load_default()
+    
+    text = "M"
+    
+    # Calcular posición centrada
+    bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+    
+    x = (size - text_width) // 2
+    y = (size - text_height) // 2 - 10
+    
+    # Dibujar texto
+    draw.text((x, y), text, fill=text_color, font=font)
+    
+    # Guardar como PNG
+    img.save('mux_icon.png', 'PNG')
+    print("✅ Icono PNG creado: mux_icon.png")
+    
+    # Intentar crear ICO
+    try:
+        # Crear versiones en diferentes tamaños
+        icons = []
+        for s in sizes:
+            resized = img.resize((s, s), Image.Resampling.LANCZOS)
+            icons.append(resized)
+        
+        # Guardar como ICO
+        icons[0].save('mux_icon.ico', format='ICO', sizes=[(s, s) for s in sizes])
+        print("✅ Icono ICO creado: mux_icon.ico")
+    except Exception as e:
+        print(f"⚠️ No se pudo crear ICO: {e}")
+        print("   Puedes convertir mux_icon.png a ICO manualmente")
+
+if __name__ == '__main__':
+    try:
+        create_mux_icon()
+    except ImportError:
+        print("❌ Pillow no está instalado")
+        print("   Instala con: pip install Pillow")
+        print("\nCreando icono simple sin Pillow...")
+        
+        # Crear un archivo ICO básico manualmente
+        # (Este es un placeholder, el usuario debería instalar Pillow)
+        print("\n⚠️ Por favor instala Pillow para crear el icono:")
+        print("   pip install Pillow")
+        print("   python create_icon.py")

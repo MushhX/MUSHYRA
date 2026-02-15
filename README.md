@@ -301,11 +301,14 @@ Ver [UNIQUE_COMMANDS.md](UNIQUE_COMMANDS.md) para documentación completa.
 - [UNIQUE_COMMANDS.md](UNIQUE_COMMANDS.md) - Comandos únicos de Mux
 - [BOTS_GUIDE.md](BOTS_GUIDE.md) - Guía para crear bots
 - [EXECUTABLE_GUIDE.md](EXECUTABLE_GUIDE.md) - Guía del ejecutable
+- [INSTALLER_GUIDE.md](INSTALLER_GUIDE.md) - Guía de instaladores
+- [DISTRIBUTION.md](DISTRIBUTION.md) - Guía de distribución
 - [RELEASE_NOTES.md](RELEASE_NOTES.md) - Notas de lanzamiento
 - [ROADMAP.md](ROADMAP.md) - Plan de desarrollo
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Guía de contribución
 - [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) - Resumen del proyecto
 - [COMMANDS.md](COMMANDS.md) - Comandos útiles de terminal
+- [FINAL_SUMMARY.md](FINAL_SUMMARY.md) - Resumen final del proyecto
 
 ## 🤝 Contribuir
 
@@ -340,13 +343,14 @@ Ver [ROADMAP.md](ROADMAP.md) para más detalles.
 
 ## 📊 Estadísticas
 
-- **Líneas de código**: 3000+
+- **Líneas de código**: 3500+
 - **Ejemplos**: 20+
 - **Módulos stdlib**: 15
 - **Comandos únicos**: 11
 - **Características**: 70+
-- **Documentación**: 14 archivos
+- **Documentación**: 16 archivos
 - **Tamaño ejecutable**: 7.89 MB
+- **Tamaño instalador**: 7.75 MB
 
 ## 🎓 Casos de Uso
 
