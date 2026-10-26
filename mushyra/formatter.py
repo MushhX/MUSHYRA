@@ -3,7 +3,7 @@
 from .lexer import Lexer
 
 
-OPENERS = {"IF", "REPEAT", "WHILE", "FOR", "FUNC", "LOOP", "UNTIL", "UNLESS", "EACH"}
+OPENERS = {"IF", "MATCH", "REPEAT", "WHILE", "FOR", "FUNC", "LOOP", "UNTIL", "UNLESS", "EACH"}
 CLOSERS = {"END", "ELSE", "ELIF"}
 DELIMITER_PAIRS = {"LPAREN": "RPAREN", "LBRACKET": "RBRACKET", "LBRACE": "RBRACE"}
 DELIMITER_CLOSE = {value: key for key, value in DELIMITER_PAIRS.items()}
@@ -22,6 +22,7 @@ def format_source(source: str, indent_width: int = 4) -> str:
     output = []
     block_depth = 0
     delimiters = []
+    match_depths = []
     for line_number, line in enumerate(source.replace("\r\n", "\n").replace("\r", "\n").split("\n"), 1):
         stripped = line.strip()
         if not stripped:
@@ -30,7 +31,15 @@ def format_source(source: str, indent_width: int = 4) -> str:
 
         line_tokens = by_line.get(line_number, [])
         first = line_tokens[0].type if line_tokens else None
-        structural_depth = max(0, block_depth - 1) if first in CLOSERS else block_depth
+        closing_match = first == "END" and match_depths and block_depth == match_depths[-1] + 2
+        matching_case = (first in ("CASE", "ELSE") and match_depths
+                         and block_depth == match_depths[-1] + 2)
+        if closing_match:
+            structural_depth = match_depths.pop()
+        elif matching_case:
+            structural_depth = match_depths[-1] + 1
+        else:
+            structural_depth = max(0, block_depth - 1) if first in CLOSERS else block_depth
         if delimiters:
             indent_level = delimiters[-1][1] if first in DELIMITER_CLOSE else delimiters[-1][1] + 1
         else:
@@ -47,6 +56,13 @@ def format_source(source: str, indent_width: int = 4) -> str:
 
         if first == "END":
             block_depth = structural_depth
+        elif first == "MATCH":
+            match_depths.append(structural_depth)
+            block_depth = structural_depth + 1
+        elif first == "CASE" and match_depths:
+            block_depth = match_depths[-1] + 2
+        elif first == "ELSE" and matching_case:
+            block_depth = match_depths[-1] + 2
         elif first in ("ELSE", "ELIF"):
             block_depth = structural_depth + 1
         elif first in OPENERS or (first == "NUMBER" and any(token.type == "TIMES" for token in line_tokens)):

@@ -19,6 +19,18 @@
     ],
     "description": "Create a conditional block"
   },
+  "Match/case": {
+    "prefix": "match",
+    "body": [
+      "match ${1:value}",
+      "    case ${2:pattern}",
+      "        $0",
+      "    else",
+      "        pass",
+      "end"
+    ],
+    "description": "Select a branch by matching a value"
+  },
   "For loop": {
     "prefix": "for",
     "body": [

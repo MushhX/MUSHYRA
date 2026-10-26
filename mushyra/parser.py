@@ -118,7 +118,7 @@ class Parser:
     def _type_tree(self, tree):
         """Convert tuple AST records to ASTNode while retaining tuple behavior."""
         node_kinds = {
-            "print", "if", "match", "repeat", "while", "for", "func", "return", "break",
+            "print", "if", "match", "try", "throw", "repeat", "while", "for", "func", "return", "break",
             "continue", "assert", "show", "say", "wait", "exit", "pass", "loop",
             "until", "unless", "each", "expr_stmt", "import", "from_import", "let",
             "assign", "index_assign", "slice_assign", "attr_assign", "global", "nonlocal", "number",
@@ -189,6 +189,13 @@ class Parser:
             stmt = self.parse_if()
         elif kind == "MATCH":
             stmt = self.parse_match()
+        elif kind == "TRY":
+            stmt = self.parse_try()
+        elif kind == "THROW":
+            self.advance()
+            if self._at_statement_end():
+                raise self.error("throw requiere un valor", token)
+            stmt = ("throw", self.parse_expression())
         elif kind == "REPEAT":
             stmt = self.parse_repeat()
         elif kind == "WHILE":
@@ -308,14 +315,53 @@ class Parser:
         self.expect("ASSIGN")
         return ("let", name, self.parse_expression())
 
-    def parse_pattern(self):
+    @staticmethod
+    def _number_value(token):
+        digits = token.value.replace("_", "")
+        if len(digits) > 4096:
+            raise ValueError("El literal numérico supera el límite de 4096 caracteres")
+        value = float(digits) if "." in digits or "e" in digits.lower() else int(digits)
+        if isinstance(value, float) and (value != value or value in (float("inf"), float("-inf"))):
+            raise ValueError("El literal decimal debe ser finito")
+        return value
+
+    def parse_pattern(self, allow_literals=False):
         token = self.current()
         if token is None:
-            raise self.error("Se esperaba un patrón de asignación", token)
+            raise self.error("Se esperaba un patrón", token)
         if token.type == "ID":
             self.advance()
-            pattern = ("pattern_name", token.value)
+            pattern = (("pattern_wildcard",) if allow_literals and token.value == "_"
+                       else ("pattern_name", token.value))
             self.node_spans[id(pattern)] = self._span_from_tokens(token, token)
+            self.source_map[id(pattern)] = token
+            return pattern
+        if allow_literals and token.type in ("NUMBER", "STRING", "BOOL", "NULL"):
+            self.advance()
+            if token.type == "NUMBER":
+                try:
+                    value = self._number_value(token)
+                except (ValueError, OverflowError) as exc:
+                    raise self.error(str(exc), token) from exc
+            elif token.type == "STRING":
+                value = ast.literal_eval(token.value)
+            elif token.type == "BOOL":
+                value = token.value == "true"
+            else:
+                value = None
+            pattern = ("pattern_literal", value)
+            self.node_spans[id(pattern)] = self._span_from_tokens(token, token)
+            self.source_map[id(pattern)] = token
+            return pattern
+        if allow_literals and token.type == "MINUS" and self.peek() and self.peek().type == "NUMBER":
+            self.advance()
+            number_token = self.advance()
+            try:
+                value = -self._number_value(number_token)
+            except (ValueError, OverflowError) as exc:
+                raise self.error(str(exc), number_token) from exc
+            pattern = ("pattern_literal", value)
+            self.node_spans[id(pattern)] = self._span_from_tokens(token, number_token)
             self.source_map[id(pattern)] = token
             return pattern
         if token.type == "LBRACE":
@@ -329,6 +375,17 @@ class Parser:
                         key = self.advance().value
                     elif key_token.type == "STRING":
                         key = ast.literal_eval(self.advance().value)
+                    elif allow_literals and key_token.type == "NUMBER":
+                        self.advance()
+                        try:
+                            key = self._number_value(key_token)
+                        except (ValueError, OverflowError) as exc:
+                            raise self.error(str(exc), key_token) from exc
+                    elif allow_literals and key_token.type == "BOOL":
+                        key = self.advance().value == "true"
+                    elif allow_literals and key_token.type == "NULL":
+                        self.advance()
+                        key = None
                     else:
                         raise self.error("La clave del patrón debe ser un nombre o string", key_token)
                     try:
@@ -339,9 +396,10 @@ class Parser:
                         raise self.error("La clave del patrón debe ser inmutable", key_token) from exc
                     if self.current() and self.current().type == "COLON":
                         self.advance()
-                        child = self.parse_pattern()
+                        child = self.parse_pattern(allow_literals)
                     elif key_token.type == "ID":
-                        child = ("pattern_name", key)
+                        child = (("pattern_wildcard",) if allow_literals and key == "_"
+                                 else ("pattern_name", key))
                         self.node_spans[id(child)] = self._span_from_tokens(key_token, key_token)
                         self.source_map[id(child)] = key_token
                     else:
@@ -352,7 +410,7 @@ class Parser:
                     self.advance()
                     if self.current() and self.current().type == "RBRACE":
                         break
-            if not entries:
+            if not entries and not allow_literals:
                 raise self.error("El patrón de diccionario no puede estar vacío", opening)
             closing = self.expect("RBRACE")
             pattern = ("pattern_dict", entries)
@@ -360,23 +418,23 @@ class Parser:
             self.source_map[id(pattern)] = opening
             return pattern
         if token.type not in ("LBRACKET", "LPAREN"):
-            raise self.error("El patrón solo admite nombres y patrones de lista, tupla o diccionario", token)
+            raise self.error("El patrón solo admite literales, nombres y patrones de secuencia o diccionario", token)
         closing_type = "RBRACKET" if token.type == "LBRACKET" else "RPAREN"
         opening = self.advance()
         items = []
         saw_comma = False
         if self.current() and self.current().type != closing_type:
             while True:
-                items.append(self.parse_pattern())
+                items.append(self.parse_pattern(allow_literals))
                 if not self.current() or self.current().type != "COMMA":
                     break
                 saw_comma = True
                 self.advance()
                 if self.current() and self.current().type == closing_type:
                     break
-        if not items and closing_type == "RBRACKET":
+        if not items and closing_type == "RBRACKET" and not allow_literals:
             raise self.error("El patrón de lista no puede estar vacío", opening)
-        if not items:
+        if not items and not allow_literals:
             raise self.error("El patrón de tupla no puede estar vacío", opening)
         closing = self.expect(closing_type)
         if closing_type == "RPAREN" and len(items) == 1 and not saw_comma:
@@ -479,6 +537,72 @@ class Parser:
             else_body = self._parse_block({"END"})
         self.expect("END")
         return ("if", condition, body, branches, else_body)
+
+    def parse_match(self):
+        self.advance()
+        subject = self.parse_expression()
+        self.skip_newlines()
+        cases = []
+        while self.current() and self.current().type == "CASE":
+            case_token = self.advance()
+            pattern = self.parse_pattern(allow_literals=True)
+            captures = list(self._pattern_capture_names(pattern))
+            if len(captures) > 256:
+                raise self.error("Un patrón match no puede declarar más de 256 nombres", case_token)
+            if len(captures) != len(set(captures)):
+                raise self.error("Un patrón match no puede enlazar dos veces el mismo nombre", case_token)
+            guard = None
+            if self.current() and self.current().type == "IF":
+                self.advance()
+                guard = self.parse_expression()
+            body = self._parse_block({"CASE", "ELSE", "END"})
+            cases.append((pattern, guard, body))
+        else_body = []
+        if self.current() and self.current().type == "ELSE":
+            self.advance()
+            else_body = self._parse_block({"END"})
+        if not cases:
+            raise self.error("match requiere al menos una cláusula case", self.current())
+        self.expect("END")
+        return ("match", subject, cases, else_body)
+
+    def parse_try(self):
+        self.advance()
+        body = self._parse_block({"CATCH", "FINALLY", "END"})
+        catches = []
+        while self.current() and self.current().type == "CATCH":
+            catch_token = self.advance()
+            pattern = self.parse_pattern(allow_literals=True)
+            captures = list(self._pattern_capture_names(pattern))
+            if len(captures) > 256:
+                raise self.error("Un patrón catch no puede declarar más de 256 nombres", catch_token)
+            if len(captures) != len(set(captures)):
+                raise self.error("Un patrón catch no puede enlazar dos veces el mismo nombre", catch_token)
+            guard = None
+            if self.current() and self.current().type == "IF":
+                self.advance()
+                guard = self.parse_expression()
+            catch_body = self._parse_block({"CATCH", "FINALLY", "END"})
+            catches.append((pattern, guard, catch_body))
+        finally_body = None
+        if self.current() and self.current().type == "FINALLY":
+            self.advance()
+            finally_body = self._parse_block({"END"})
+        if not catches and finally_body is None:
+            raise self.error("try requiere al menos una cláusula catch o finally", self.current())
+        self.expect("END")
+        return ("try", body, catches, finally_body)
+
+    @classmethod
+    def _pattern_capture_names(cls, pattern):
+        if pattern[0] == "pattern_name":
+            yield pattern[1]
+        elif pattern[0] == "pattern_list":
+            for child in pattern[1]:
+                yield from cls._pattern_capture_names(child)
+        elif pattern[0] == "pattern_dict":
+            for _key, child in pattern[1]:
+                yield from cls._pattern_capture_names(child)
 
     def _parse_loop_body(self):
         self.loop_depth += 1
@@ -760,15 +884,10 @@ class Parser:
             return self.parse_lambda()
         if token.type == "NUMBER":
             self.advance()
-            digits = token.value.replace("_", "")
-            if len(digits) > 4096:
-                raise self.error("El literal numérico supera el límite de 4096 caracteres", token)
             try:
-                value = float(digits) if "." in digits or "e" in digits.lower() else int(digits)
+                value = self._number_value(token)
             except (ValueError, OverflowError) as exc:
                 raise self.error(f"Literal numérico no válido: {exc}", token) from exc
-            if isinstance(value, float) and (value != value or value in (float("inf"), float("-inf"))):
-                raise self.error("El literal decimal debe ser finito", token)
             return ("number", value)
         if token.type == "STRING":
             self.advance()

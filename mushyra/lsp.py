@@ -22,6 +22,7 @@ KEYWORDS = (
     "assert", "import", "from", "as", "true", "false", "null", "show",
     "say", "ask", "wait", "exit", "loop", "until", "unless", "pass", "print",
     "input", "len", "type", "str", "int", "float", "range", "times", "do",
+    "match", "case",
     "&&", "||", "!",
 )
 
@@ -134,6 +135,10 @@ def _statement_blocks(statement):
         yield statement[3]
     elif kind == "func":
         yield statement[3]
+    elif kind == "match":
+        for _pattern, _guard, branch in statement[2]:
+            yield branch
+        yield statement[3]
 
 
 def _document_index(source, tokens, tree):
@@ -213,6 +218,9 @@ def _document_index(source, tokens, tree):
                                13, statement, scope_id)
             elif kind in ("destructure_let", "destructure_assign"):
                 collect_pattern(statement[1], statement, scope_id)
+            elif kind == "match":
+                for pattern, _guard, _branch in statement[2]:
+                    collect_pattern(pattern, statement, scope_id)
             for expression in _statement_expressions(statement):
                 collect_comprehension_variables(expression, statement)
             if kind == "func" and len(statement) > 4:

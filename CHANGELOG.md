@@ -7,6 +7,7 @@
 - El lenguaje y sus herramientas se llaman MUSHYRA. `myr` ejecuta programas y `myr-pkg` administra paquetes.
 - Los programas usan la extensión `.myr`; el paquete Python se llama `mushyra` y la extensión de VS Code identifica el lenguaje como `myr`.
 - Las expresiones `lambda` permiten crear funciones anónimas con parámetros posicionales o con nombre y cierres léxicos.
+- `match`/`case` compara literales, secuencias y diccionarios, y admite capturas, guardas y una rama `else`.
 
 ## [1.2.0] - 2026-10-26
 

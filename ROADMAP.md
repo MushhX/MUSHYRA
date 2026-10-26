@@ -16,6 +16,7 @@ La versión publicada más reciente es 2.0.0. Esta lista separa las capacidades 
 - Guía de sintaxis y snippets para VS Code.
 - Argumentos de función por defecto, con nombre y variádicos; tuplas, desempaquetado de patrones y slices.
 - Funciones anónimas `lambda` con expresiones, cierres léxicos y validación estática de nombres.
+- `match`/`case` con captura de nombres, patrones literales y de colecciones, guardas y `else`.
 
 ## Siguientes áreas
 

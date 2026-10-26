@@ -101,6 +101,18 @@ def lint_ast(tree):
                 for _condition, branch in statement[3]:
                     inspect_block(branch)
                 inspect_block(statement[4])
+            elif kind == "match":
+                catch_all_seen = False
+                for pattern, guard, branch in statement[2]:
+                    if catch_all_seen:
+                        diagnostics.append(LintDiagnostic(
+                            "MYR105", "Cláusula case inalcanzable después de un patrón general",
+                            span=getattr(pattern, "span", None),
+                        ))
+                    inspect_block(branch)
+                    if guard is None and pattern[0] in ("pattern_name", "pattern_wildcard"):
+                        catch_all_seen = True
+                inspect_block(statement[3])
             elif kind in ("repeat", "while", "loop", "until", "unless"):
                 inspect_block(statement[-1])
             elif kind in ("for", "each"):
@@ -152,6 +164,13 @@ def lint_ast(tree):
                     for _condition, branch in statement[3]:
                         scan(branch)
                     scan(statement[4])
+                elif kind == "match":
+                    for pattern, _guard, branch in statement[2]:
+                        for name in pattern_names(pattern):
+                            declared.add(name)
+                            declaration_spans.setdefault(name, getattr(pattern, "span", None))
+                        scan(branch)
+                    scan(statement[3])
                 elif kind in ("repeat", "while", "loop", "until", "unless"):
                     scan(statement[-1])
 

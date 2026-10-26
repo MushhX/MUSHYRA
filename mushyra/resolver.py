@@ -23,6 +23,10 @@ def _block_children(statement):
         for _, branch in statement[3]:
             yield branch
         yield statement[4]
+    elif kind == "match":
+        for _pattern, _guard, branch in statement[2]:
+            yield branch
+        yield statement[3]
     elif kind in ("repeat", "while", "loop", "until", "unless"):
         yield statement[-1]
     elif kind in ("for", "each"):
@@ -57,6 +61,9 @@ def _collect_bindings(statements, params):
                     continue
             elif kind in ("destructure_let", "destructure_assign"):
                 locals_.update(_pattern_names(statement[1]))
+            elif kind == "match":
+                for pattern, _guard, _branch in statement[2]:
+                    locals_.update(_pattern_names(pattern))
             elif kind in ("for", "each"):
                 locals_.add(statement[1])
             elif kind == "global":
@@ -105,6 +112,8 @@ def _statement_expressions(statement):
         return (statement[1],)
     if kind in ("if", "while", "until", "unless"):
         return (statement[1],)
+    if kind == "match":
+        return (statement[1], *(guard for _pattern, guard, _body in statement[2] if guard is not None))
     if kind == "repeat":
         return (statement[1],)
     if kind in ("for", "each"):
@@ -196,6 +205,9 @@ def _module_bindings(statements, initial_names):
                     continue
             elif kind in ("destructure_let", "destructure_assign"):
                 names.update(_pattern_names(statement[1]))
+            elif kind == "match":
+                for pattern, _guard, _branch in statement[2]:
+                    names.update(_pattern_names(pattern))
             elif kind in ("for", "each"):
                 names.add(statement[1])
             elif kind == "import":

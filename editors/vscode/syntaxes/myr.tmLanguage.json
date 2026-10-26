@@ -38,7 +38,7 @@
     },
     "keywords": {
       "patterns": [
-        {"name": "keyword.control.myr", "match": "\\b(?:if|elif|else|end|repeat|while|for|each|until|unless|loop|times|do|break|continue|return|exit|pass|assert)\\b"},
+        {"name": "keyword.control.myr", "match": "\\b(?:if|elif|else|end|match|case|repeat|while|for|each|until|unless|loop|times|do|break|continue|return|exit|pass|assert)\\b"},
         {"name": "keyword.declaration.myr", "match": "\\b(?:let|func|lambda|global|nonlocal)\\b"},
         {"name": "keyword.other.import.myr", "match": "\\b(?:import|from|as)\\b"}
       ]

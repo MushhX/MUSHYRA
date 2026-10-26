@@ -556,6 +556,26 @@ class Interpreter:
                     self._eval_block(elif_body)
                     return
             self._eval_block(else_body)
+        elif kind == "match":
+            subject = self.eval_expression(stmt[1])
+            for pattern, guard, body in stmt[2]:
+                bindings = self._match_pattern(pattern, subject)
+                if bindings is None:
+                    continue
+                self._charge_allocation(64 + 32 * len(bindings))
+                snapshot = self._install_match_bindings(bindings)
+                if guard is not None:
+                    try:
+                        guard_matches = ValueSemantics.truthy(self.eval_expression(guard))
+                    except BaseException:
+                        self._restore_match_bindings(snapshot)
+                        raise
+                    if not guard_matches:
+                        self._restore_match_bindings(snapshot)
+                        continue
+                self._eval_block(body)
+                return
+            self._eval_block(stmt[3])
         elif kind == "repeat":
             count = self.eval_expression(stmt[1])
             if not isinstance(count, int) or isinstance(count, bool) or count < 0:
@@ -751,6 +771,78 @@ class Interpreter:
             raise MushyraError(f"El patrón espera {len(items)} elementos y recibió {len(value)}")
         for child, item in zip(items, value):
             cls._collect_pattern_bindings(child, item, bindings)
+
+    def _match_pattern(self, pattern, value):
+        self._tick()
+        kind = pattern[0]
+        if kind == "pattern_wildcard":
+            return {}
+        if kind == "pattern_name":
+            return {pattern[1]: value}
+        if kind == "pattern_literal":
+            return {} if ValueSemantics.equal(pattern[1], value, check_step=self._tick) else None
+        if kind == "pattern_list":
+            if not isinstance(value, (list, tuple, str, range)) or len(value) != len(pattern[1]):
+                return None
+            bindings = {}
+            for child, item in zip(pattern[1], value):
+                child_bindings = self._match_pattern(child, item)
+                if child_bindings is None:
+                    return None
+                bindings.update(child_bindings)
+            return bindings
+        if kind == "pattern_dict":
+            if not isinstance(value, dict):
+                return None
+            bindings = {}
+            for key, child in pattern[1]:
+                try:
+                    if key not in value:
+                        return None
+                    item = value[key]
+                except TypeError:
+                    return None
+                child_bindings = self._match_pattern(child, item)
+                if child_bindings is None:
+                    return None
+                bindings.update(child_bindings)
+            return bindings
+        raise MushyraError(f"Patrón match interno no reconocido: {kind}")
+
+    def _match_binding_target(self, name):
+        if not self.environments:
+            return self.global_scope_stack[-1] if self.global_scope_stack else self.globals
+        global_names, nonlocal_names = self.declarations[-1]
+        if name in global_names:
+            return self.global_scope_stack[-1] if self.global_scope_stack else self.globals
+        if name in nonlocal_names:
+            scope_index = self.free_bindings_stack[-1].get(name)
+            if scope_index is None or scope_index >= len(self.environments[-1]):
+                raise MushyraError(f"nonlocal {name!r} no existe en un ámbito exterior")
+            return self.environments[-1][scope_index]
+        return self.environments[-1][0]
+
+    def _install_match_bindings(self, bindings):
+        snapshot = []
+        try:
+            for name, value in bindings.items():
+                target = self._match_binding_target(name)
+                existed = name in target
+                previous = target.get(name)
+                snapshot.append((target, name, existed, previous))
+                self.set_var(name, value)
+        except BaseException:
+            self._restore_match_bindings(snapshot)
+            raise
+        return snapshot
+
+    @staticmethod
+    def _restore_match_bindings(snapshot):
+        for target, name, existed, previous in reversed(snapshot):
+            if existed:
+                target[name] = previous
+            else:
+                target.pop(name, None)
 
     def _set_dict_item(self, mapping, key, value, charge=True):
         value = self._guard_value(value)

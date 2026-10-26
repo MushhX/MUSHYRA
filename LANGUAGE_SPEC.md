@@ -15,7 +15,7 @@ Esta referencia describe la sintaxis que implementa el parser. Las columnas de l
 
 ```ebnf
 program       = { newline | statement newline } ;
-statement     = import | declaration | assignment | call | print | conditional
+statement     = import | declaration | assignment | call | print | conditional | match_statement
               | loop | function | flow | assertion | display | pass ;
 import        = "import" module [ "as" identifier ]
               | "from" module "import" identifier [ "as" identifier ]
@@ -30,6 +30,17 @@ pattern       = identifier | "[" pattern { "," pattern } [ "," ] "]"
               | "(" pattern ")" | "(" pattern "," [ pattern { "," pattern } [ "," ] ] ")"
               | "{" pattern_entry { "," pattern_entry } [ "," ] "}" ;
 pattern_entry = identifier [ ":" pattern ] | string ":" pattern ;
+match_statement = "match" expression newline
+                  { "case" match_pattern [ "if" expression ] block }
+                  [ "else" block ] "end" ;
+match_pattern = "_" | identifier | match_literal
+              | "[" [ match_pattern { "," match_pattern } [ "," ] ] "]"
+              | "(" ")" | "(" match_pattern ")"
+              | "(" match_pattern "," [ match_pattern { "," match_pattern } [ "," ] ] ")"
+              | "{" [ match_pattern_entry { "," match_pattern_entry } [ "," ] ] "}" ;
+match_pattern_entry = identifier [ ":" match_pattern ] | match_key ":" match_pattern ;
+match_key     = string | number | boolean | "null" ;
+match_literal = match_key | "-" number ;
 print         = "print" "(" expression ")" ;
 conditional   = "if" expression block { "elif" expression block }
                 [ "else" block ] "end"
@@ -87,3 +98,5 @@ Functions accept positional and named arguments, trailing default parameters, an
 Parentheses group expressions; a comma creates an immutable tuple, including the one-element form `(value,)` and empty form `()`. List and dictionary comprehensions evaluate their iterable once, bind the iteration variable in a temporary local scope, and optionally filter each item with `if`; for example, `[value * 2 for value in numbers if value > 0]` and `{value: value * 2 for value in numbers}`. Comprehensions accept at most one iteration clause and are limited to one million input elements.
 
 Sequence destructuring binds values after the complete pattern has been checked: `let [first, [second, third]] = values` or `let (first, second) = pair`. Dictionary patterns select named keys and can rename them: `let {name: person, age} = record` binds `record["name"]` to `person` and `record["age"]` to `age`; extra keys are allowed, but every requested key must exist. Assignment uses the same nested patterns without `let`. A sequence pattern must match its length exactly; lists, tuples, strings, and ranges can be unpacked. Slices use Python-style exclusive endpoints on lists, tuples, strings, and ranges, such as `items[1:4]`, `text[::-1]`, or `values[:limit:2]`. A slice can be assigned on the left side of an assignment only when the target is a list; the replacement must be a sequence, and extended slices must have the same length as the selected elements.
+
+`match expression` selects the first matching `case pattern`, with an optional `if` guard, and may finish with `else`; one `end` closes the whole match. A bare name captures the subject, `_` ignores it, literals compare by MUSHYRA value semantics, sequence patterns require the same length, and dictionary patterns require their listed keys while allowing extra keys. Captures become variables in the current lexical scope only after the pattern and guard succeed. Captures from a failed guard are discarded.

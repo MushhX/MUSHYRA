@@ -1,0 +1,17 @@
+# Patrones, guardas y capturas en MUSHYRA
+func describir(valor)
+    match valor
+    case 0
+        return "cero"
+    case ["saludo", nombre] if len(nombre) > 0
+        return "Hola " + nombre
+    case {"estado": "ok", "dato": dato}
+        return "Resultado: " + str(dato)
+    else
+        return "otro valor"
+    end
+end
+
+print(describir(["saludo", "Ana"]))
+print(describir({"estado": "ok", "dato": 42}))
+print(describir(-1))
