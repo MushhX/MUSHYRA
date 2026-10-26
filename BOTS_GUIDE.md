@@ -1,309 +1,70 @@
-# Guía de Creación de Bots con Mux
-**Creador: MushhX**
+# Bots e integraciones externas
 
-Esta guía te enseña cómo crear bots reales de Discord, Telegram y WhatsApp usando Mux.
+Los módulos conectan con servicios reales. Instala el extra correspondiente y guarda los tokens en variables de entorno; no los escribas en el archivo `.mux` ni los subas al repositorio.
 
-## Bot de Discord
+Desde el checkout, por ejemplo:
 
-### 1. Obtener Token
-
-1. Ve a [Discord Developer Portal](https://discord.com/developers/applications)
-2. Crea una nueva aplicación
-3. Ve a la sección "Bot"
-4. Copia el token
-
-### 2. Instalar Dependencias
-
-```bash
-pip install "mux-lang[discord]"
-# o
-pip install discord.py
+```console
+python -m pip install ".[discord,telegram,whatsapp]"
 ```
 
-### 3. Crear Bot en Mux
+## Discord
+
+Crea una aplicación y un bot en el [portal de desarrolladores de Discord](https://discord.com/developers/applications), y configura la variable `MUX_DISCORD_TOKEN`.
 
 ```mux
+import env
 import discord_bot
 
-let token = "TU_TOKEN_AQUI"
-let bot = crear_bot(token)
+let bot = discord_bot.crear_bot(env.require("MUX_DISCORD_TOKEN"))
 
-func saludar_handler()
-    print("¡Hola desde Discord!")
-end
-
-func info_handler()
-    print("Bot creado con Mux")
-end
-
-comando(bot, "hola", saludar_handler)
-comando(bot, "info", info_handler)
-
-iniciar_bot(bot)
-```
-
-### 4. Ejecutar
-
-```bash
-mux mi_bot_discord.mux
-```
-
-## Bot de Telegram
-
-### 1. Obtener Token
-
-1. Habla con [@BotFather](https://t.me/botfather) en Telegram
-2. Usa `/newbot` para crear un bot
-3. Copia el token que te da
-
-### 2. Instalar Dependencias
-
-```bash
-pip install "mux-lang[telegram]"
-# o
-pip install python-telegram-bot
-```
-
-### 3. Crear Bot en Mux
-
-```mux
-import telegram_bot
-
-let token = "TU_TOKEN_AQUI"
-let bot = crear_bot(token)
-
-func start_handler()
-    print("¡Bienvenido!")
-end
-
-func ayuda_handler()
-    print("Comandos disponibles:")
-    print("/start - Iniciar")
-    print("/ayuda - Ver ayuda")
-end
-
-comando(bot, "start", start_handler)
-comando(bot, "ayuda", ayuda_handler)
-
-iniciar_bot(bot)
-```
-
-### 4. Ejecutar
-
-```bash
-mux mi_bot_telegram.mux
-```
-
-## Bot de WhatsApp (con Twilio)
-
-### 1. Configurar Twilio
-
-1. Crea cuenta en [Twilio](https://www.twilio.com/)
-2. Obtén tu Account SID y Auth Token
-3. Configura un número de WhatsApp
-
-### 2. Instalar Dependencias
-
-```bash
-pip install "mux-lang[whatsapp]"
-# o
-pip install twilio
-```
-
-### 3. Crear Bot en Mux
-
-```mux
-import whatsapp_bot
-
-let account_sid = "TU_ACCOUNT_SID"
-let auth_token = "TU_AUTH_TOKEN"
-let numero = "+1234567890"
-
-let bot = crear_bot(account_sid, auth_token, numero)
-
-func mensaje_handler(texto)
-    print("Mensaje recibido: " + texto)
+func saludar()
     return "¡Hola desde Mux!"
 end
 
-mensaje(bot, mensaje_handler)
-
-iniciar_bot(bot)
+discord_bot.comando(bot, "hola", saludar)
+discord_bot.iniciar_bot(bot)
 ```
 
-## Características Avanzadas
+Los comandos usan el prefijo `!`. El handler no recibe argumentos; su valor de retorno se envía al canal. Para comandos por prefijo, habilita el intent de contenido de mensajes en la configuración del bot de Discord.
 
-### Comandos con Parámetros
+## Telegram
+
+Crea un bot con [BotFather](https://t.me/BotFather) y define `MUX_TELEGRAM_TOKEN`.
 
 ```mux
-func saludar_handler(nombre)
-    print("¡Hola, " + nombre + "!")
+import env
+import telegram_bot
+
+let bot = telegram_bot.crear_bot(env.require("MUX_TELEGRAM_TOKEN"))
+
+func iniciar()
+    return "¡Bienvenido!"
 end
 
-comando_con_params(bot, "saludar", saludar_handler)
+telegram_bot.comando(bot, "start", iniciar)
+telegram_bot.iniciar_bot(bot)
 ```
 
-### Respuestas Dinámicas
+El nombre del comando se pasa sin `/`. El handler no recibe argumentos y su valor de retorno se responde al mensaje.
+
+## WhatsApp saliente con Twilio
+
+Configura las credenciales `MUX_TWILIO_ACCOUNT_SID` y `MUX_TWILIO_AUTH_TOKEN`; `MUX_TWILIO_WHATSAPP_FROM` puede elegir el remitente. Después instala el extra `whatsapp` y ejecuta:
 
 ```mux
-func calcular_handler(operacion)
-    let partes = operacion.split(" ")
-    let a = int(partes[0])
-    let b = int(partes[2])
-    let op = partes[1]
-    
-    if op == "+"
-        return str(a + b)
-    elif op == "-"
-        return str(a - b)
-    elif op == "*"
-        return str(a * b)
-    elif op == "/"
-        return str(a / b)
-    end
-    
-    return "Operación no válida"
-end
+import env
+import whatsapp
 
-comando(bot, "calc", calcular_handler)
+let destino = env.require("MUX_WHATSAPP_TO")
+let resultado = whatsapp.send(destino, "Mensaje enviado desde Mux")
+print(resultado["status"])
 ```
 
-### Almacenar Datos
+Este módulo envía mensajes mediante Twilio; no recibe mensajes entrantes ni configura webhooks. El número destinatario debe estar habilitado en la cuenta y el entorno de Twilio.
 
-```mux
-let usuarios = {}
+## Ejecución y secretos
 
-func registrar_handler(nombre)
-    usuarios[nombre] = {"puntos": 0}
-    print("Usuario " + nombre + " registrado")
-end
+En PowerShell, define una variable para la sesión con `$env:MUX_DISCORD_TOKEN = "..."`; en macOS/Linux usa `export MUX_DISCORD_TOKEN="..."`. Luego ejecuta `mux mi_bot.mux` en esa misma terminal.
 
-func puntos_handler(nombre)
-    if nombre in usuarios
-        let puntos = usuarios[nombre]["puntos"]
-        print(nombre + " tiene " + str(puntos) + " puntos")
-    else
-        print("Usuario no encontrado")
-    end
-end
-
-comando(bot, "registrar", registrar_handler)
-comando(bot, "puntos", puntos_handler)
-```
-
-## Despliegue
-
-### Ejecutar en Servidor
-
-```bash
-# En servidor Linux
-nohup mux mi_bot.mux &
-
-# Con screen
-screen -S bot
-mux mi_bot.mux
-# Ctrl+A, D para detach
-```
-
-### Docker
-
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-
-COPY . .
-
-RUN pip install -e ".[full]"
-
-CMD ["mux", "mi_bot.mux"]
-```
-
-```bash
-docker build -t mi-bot-mux .
-docker run -d mi-bot-mux
-```
-
-### Heroku
-
-```bash
-# Crear Procfile
-echo "worker: mux mi_bot.mux" > Procfile
-
-# Desplegar
-heroku create mi-bot-mux
-git push heroku main
-heroku ps:scale worker=1
-```
-
-## Mejores Prácticas
-
-### 1. Seguridad
-
-```mux
-# NO hagas esto:
-let token = "123456789:ABC..."
-
-# Haz esto:
-let token = input("Token: ")
-# O usa variables de entorno
-```
-
-### 2. Manejo de Errores
-
-```mux
-func comando_handler(params)
-    if len(params) == 0
-        return "❌ Faltan parámetros"
-    end
-    
-    # Tu lógica aquí
-    return "✅ Comando ejecutado"
-end
-```
-
-### 3. Logging
-
-```mux
-func log(mensaje)
-    print("[" + str(time()) + "] " + mensaje)
-end
-
-func comando_handler()
-    log("Comando ejecutado")
-end
-```
-
-### 4. Rate Limiting
-
-```mux
-let ultimo_uso = {}
-
-func puede_usar(usuario)
-    let ahora = time()
-    if usuario in ultimo_uso
-        let diff = ahora - ultimo_uso[usuario]
-        if diff < 5
-            return false
-        end
-    end
-    ultimo_uso[usuario] = ahora
-    return true
-end
-```
-
-## Recursos
-
-- [Discord.py Docs](https://discordpy.readthedocs.io/)
-- [python-telegram-bot Docs](https://python-telegram-bot.readthedocs.io/)
-- [Twilio Docs](https://www.twilio.com/docs)
-
-## Soporte
-
-Si tienes problemas creando bots, abre un issue en GitHub.
-
----
-
-**¡Crea bots increíbles con Mux!** 🤖
-
-Creado por MushhX 🌍⚙️
+No publiques tokens, contraseñas, datos personales ni logs que los contengan. Revoca y rota cualquier credencial que se haya compartido por error. Los servicios aplican sus propios límites de uso y condiciones.

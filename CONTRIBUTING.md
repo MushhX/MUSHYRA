@@ -1,77 +1,43 @@
-# Contribuir a Mux 🤝
+# Contribuir
 
-¡Gracias por tu interés en contribuir a Mux! Este proyecto busca ser una comunidad abierta y acogedora.
+Gracias por mejorar Mux. Los cambios deben mantener la gramática pequeña, los errores legibles y la documentación alineada con el comportamiento.
 
-## Filosofía del Proyecto
+## Preparar el entorno
 
-Antes de contribuir, ten en cuenta los principios de Mux:
-- **Claridad sobre complejidad**: Preferimos código legible a código "inteligente"
-- **Mensajes de error útiles**: Los errores deben ayudar, no confundir
-- **Documentación accesible**: Escribe para principiantes
-- **Minimalismo**: Solo añade lo necesario
-
-## Cómo Contribuir
-
-### Reportar Bugs
-1. Verifica que el bug no esté ya reportado
-2. Incluye un ejemplo mínimo reproducible
-3. Describe el comportamiento esperado vs el actual
-4. Incluye tu versión de Python y sistema operativo
-
-### Proponer Nuevas Características
-1. Abre un issue primero para discutir la idea
-2. Explica el caso de uso y por qué es importante
-3. Considera si encaja con la filosofía minimalista de Mux
-
-### Enviar Pull Requests
-1. Fork el repositorio
-2. Crea una rama para tu feature: `git checkout -b feature/mi-feature`
-3. Escribe código claro y bien comentado
-4. Añade ejemplos si introduces nueva sintaxis
-5. Actualiza la documentación si es necesario
-6. Asegúrate de que todos los ejemplos funcionen
-7. Commit con mensajes descriptivos
-8. Push y abre un Pull Request
-
-## Estructura del Código
-
-```
-mux.py          # Intérprete principal (Lexer, Parser, Interpreter)
-examples/       # Ejemplos de código Mux
-README.md       # Documentación principal
-ROADMAP.md      # Plan de desarrollo
+```console
+git clone https://github.com/MushhX/Mux.git
+cd Mux
+python -m pip install -e .
+mux examples/hola_mundo.mux
 ```
 
-## Estilo de Código
+## Estructura
 
-- Sigue PEP 8 para código Python
-- Usa nombres descriptivos en español para ejemplos
-- Comenta código complejo
-- Mantén funciones pequeñas y enfocadas
+- `mux_lang/lexer.py`: tokens y ubicaciones de origen.
+- `mux_lang/parser.py`: gramática y AST.
+- `mux_lang/interpreter.py`: evaluación, scopes y carga de módulos.
+- `mux_lang/native_stdlib.py`: módulos nativos.
+- `mux_lang/cli.py`: CLI y REPL.
+- `mux_lang/package_manager.py`: instalación local y ZIP verificado.
+- `examples/`: programas de muestra.
+- `build_*.py`, `create_*.py`: empaquetado y distribución.
 
-## Testing
+## Cambios
 
-Antes de enviar un PR, verifica que todos los ejemplos funcionen:
+1. Abre un issue para cambios grandes de sintaxis o API.
+2. Crea una rama descriptiva.
+3. Mantén los cambios enfocados y añade ejemplos cuando cambie el lenguaje.
+4. Actualiza la documentación afectada.
+5. Antes de proponer el cambio, valida manualmente los ejemplos y flujos relacionados y describe qué comandos ejecutaste.
 
-```bash
-python mux.py examples/hola_mundo.mux
-python mux.py examples/variables.mux
-python mux.py examples/condicionales.mux
-python mux.py examples/bucles.mux
-python mux.py examples/funciones.mux
-python mux.py examples/calculadora.mux
-python mux.py examples/fibonacci.mux
-```
+## Guías de implementación
 
-## Código de Conducta
+- Conserva compatibilidad de sintaxis salvo que el cambio documente una migración.
+- No conviertas errores de usuario en tracebacks sin contexto.
+- Valida entradas externas y usa parámetros SQL en vez de concatenar valores.
+- Mantén las credenciales en variables de entorno y las dependencias opcionales en extras.
+- No afirmes que una plataforma o integración está soportada sin comprobar su flujo completo.
 
-- Sé respetuoso y constructivo
-- Acepta críticas con mente abierta
-- Enfócate en lo mejor para el proyecto
-- Ayuda a otros a aprender
+## Pull requests
 
-## Preguntas
-
-Si tienes dudas, abre un issue con la etiqueta "question".
-
-¡Gracias por hacer de Mux un mejor lenguaje! 🌍⚙️
+Incluye el objetivo, los cambios de comportamiento, comandos de validación ejecutados y cualquier limitación pendiente. Evita adjuntar secretos, bases de datos locales, cachés o ejecutables generados.

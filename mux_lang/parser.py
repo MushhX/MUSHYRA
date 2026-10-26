@@ -1,540 +1,524 @@
-"""
-Mux Parser - Analizador Sintáctico
-Creador: MushhX
-"""
+"""Recursive-descent parser for Mux."""
 
-from typing import Any, List, Optional, Tuple
-from .lexer import MuxError
+import ast
+from typing import Any, Dict, List, Optional, Tuple
+
+from .lexer import MuxError, Token
+
 
 class Parser:
-    """Analizador sintáctico para Mux"""
-    
-    def __init__(self, tokens: List[Tuple]):
-        self.tokens = [t for t in tokens if t[0] != 'NEWLINE']
+    """Parse tokens into the interpreter's compact tuple AST."""
+
+    def __init__(self, tokens: List[Tuple], path: Optional[str] = None):
+        self.path = path
+        normalized = []
+        for token in tokens:
+            if isinstance(token, Token):
+                normalized.append(token)
+            else:  # Keep the public parser compatible with legacy 3-tuples.
+                token_type, value, line = token[:3]
+                normalized.append(Token(token_type, value, line, 1, 0))
+        self.tokens = self._fold_continuation_lines(normalized)
         self.pos = 0
-        
-    def current(self) -> Optional[Tuple]:
+        self.source_map: Dict[int, Token] = {}
+        self.function_depth = 0
+        self.loop_depth = 0
+
+    @staticmethod
+    def _fold_continuation_lines(tokens: List[Token]) -> List[Token]:
+        """Ignore physical newlines only while inside a delimited expression."""
+        result = []
+        depth = 0
+        opening = {"LPAREN", "LBRACKET", "LBRACE"}
+        closing = {"RPAREN", "RBRACKET", "RBRACE"}
+        for token in tokens:
+            if token.type == "NEWLINE" and depth:
+                continue
+            result.append(token)
+            if token.type in opening:
+                depth += 1
+            elif token.type in closing:
+                depth = max(0, depth - 1)
+        return result
+
+    def current(self) -> Optional[Token]:
         return self.tokens[self.pos] if self.pos < len(self.tokens) else None
-    
-    def peek(self, offset: int = 1) -> Optional[Tuple]:
+
+    def peek(self, offset: int = 1) -> Optional[Token]:
         pos = self.pos + offset
         return self.tokens[pos] if pos < len(self.tokens) else None
-    
-    def advance(self):
-        self.pos += 1
-        
-    def expect(self, token_type: str) -> Tuple:
+
+    def advance(self) -> Optional[Token]:
         token = self.current()
-        if not token or token[0] != token_type:
-            line = token[2] if token else "EOF"
-            raise MuxError(f"❌ Se esperaba {token_type} en línea {line}")
+        if token is not None:
+            self.pos += 1
+        return token
+
+    def skip_newlines(self) -> None:
+        while self.current() and self.current().type == "NEWLINE":
+            self.advance()
+
+    def error(self, message: str, token: Optional[Token] = None) -> MuxError:
+        token = token or self.current()
+        return MuxError(
+            message,
+            path=self.path,
+            line=token.line if token else None,
+            column=token.column if token else None,
+        )
+
+    def expect(self, token_type: str) -> Token:
+        token = self.current()
+        if token is None or token.type != token_type:
+            actual = token.type if token else "fin de archivo"
+            raise self.error(f"Se esperaba {token_type}, se encontró {actual}", token)
         self.advance()
         return token
-    
+
     def parse(self) -> List[Any]:
         statements = []
+        self.skip_newlines()
         while self.current():
-            stmt = self.parse_statement()
-            if stmt:
-                statements.append(stmt)
+            before = self.pos
+            statement = self.parse_statement()
+            if statement is not None:
+                statements.append(statement)
+            if self.pos == before:
+                raise self.error("El parser no pudo avanzar")
+            if self.current() and self.current().type != "NEWLINE":
+                raise self.error("Se esperaba un salto de línea entre declaraciones")
+            self.skip_newlines()
         return statements
-    
+
     def parse_statement(self):
+        self.skip_newlines()
         token = self.current()
-        if not token:
+        if token is None:
             return None
-            
-        if token[0] == 'IMPORT':
-            return self.parse_import()
-        elif token[0] == 'FROM':
-            return self.parse_from_import()
-        elif token[0] == 'LET':
-            return self.parse_let()
-        elif token[0] == 'PRINT':
-            return self.parse_print()
-        elif token[0] == 'IF':
-            return self.parse_if()
-        elif token[0] == 'REPEAT':
-            return self.parse_repeat()
-        elif token[0] == 'WHILE':
-            return self.parse_while()
-        elif token[0] == 'FOR':
-            return self.parse_for()
-        elif token[0] == 'FUNC':
-            return self.parse_func()
-        elif token[0] == 'RETURN':
-            return self.parse_return()
-        elif token[0] == 'BREAK':
+        kind = token.type
+
+        if kind == "IMPORT":
+            stmt = self.parse_import()
+        elif kind == "FROM":
+            stmt = self.parse_from_import()
+        elif kind == "LET":
+            stmt = self.parse_let()
+        elif kind == "PRINT":
             self.advance()
-            return ('break',)
-        elif token[0] == 'CONTINUE':
+            self.expect("LPAREN")
+            expr = self.parse_expression()
+            self.expect("RPAREN")
+            stmt = ("print", expr)
+        elif kind == "IF":
+            stmt = self.parse_if()
+        elif kind == "REPEAT":
+            stmt = self.parse_repeat()
+        elif kind == "WHILE":
+            stmt = self.parse_while()
+        elif kind == "FOR":
+            stmt = self.parse_for()
+        elif kind == "FUNC":
+            stmt = self.parse_func()
+        elif kind == "RETURN":
+            if self.function_depth == 0:
+                raise self.error("return solo puede usarse dentro de una función", token)
             self.advance()
-            return ('continue',)
-        elif token[0] == 'ASSERT':
-            return self.parse_assert()
-        elif token[0] == 'SHOW':
-            return self.parse_show()
-        elif token[0] == 'ASK':
-            return self.parse_ask()
-        elif token[0] == 'SAY':
-            return self.parse_say()
-        elif token[0] == 'WAIT':
-            return self.parse_wait()
-        elif token[0] == 'EXIT':
-            return self.parse_exit()
-        elif token[0] == 'PASS':
+            value = None if self._at_statement_end() else self.parse_expression()
+            stmt = ("return", value)
+        elif kind in ("BREAK", "CONTINUE"):
             self.advance()
-            return ('pass',)
-        elif token[0] == 'LOOP':
-            return self.parse_loop()
-        elif token[0] == 'TIMES':
-            return self.parse_times()
-        elif token[0] == 'UNTIL':
-            return self.parse_until()
-        elif token[0] == 'UNLESS':
-            return self.parse_unless()
-        elif token[0] == 'EACH':
-            return self.parse_each()
-        elif token[0] == 'ID':
-            next_token = self.peek()
-            if next_token and next_token[0] == 'ASSIGN':
-                return self.parse_assignment()
-            elif next_token and next_token[0] == 'LPAREN':
-                return self.parse_call()
-            elif next_token and next_token[0] == 'DOT':
-                # Método o acceso a atributo
-                return ('expr_stmt', self.parse_expression())
-            elif next_token and next_token[0] == 'LBRACKET':
-                # Verificar si es asignación o solo acceso
-                saved_pos = self.pos
-                self.advance()  # ID
-                self.advance()  # [
-                # Buscar el ]
-                depth = 1
-                while self.current() and depth > 0:
-                    if self.current()[0] == 'LBRACKET':
-                        depth += 1
-                    elif self.current()[0] == 'RBRACKET':
-                        depth -= 1
-                    self.advance()
-                # Verificar si hay =
-                if self.current() and self.current()[0] == 'ASSIGN':
-                    self.pos = saved_pos
-                    return self.parse_index_assignment()
-                else:
-                    self.pos = saved_pos
-                    return ('expr_stmt', self.parse_expression())
-        
-        raise MuxError(f"❌ Declaración no reconocida en línea {token[2]}")
-    
+            if self.loop_depth == 0:
+                word = "break" if kind == "BREAK" else "continue"
+                raise self.error(f"{word} solo puede usarse dentro de un bucle", token)
+            stmt = ("break",) if kind == "BREAK" else ("continue",)
+        elif kind == "ASSERT":
+            stmt = self.parse_assert()
+        elif kind in ("GLOBAL", "NONLOCAL"):
+            if self.function_depth == 0:
+                raise self.error(f"{kind.lower()} solo puede usarse dentro de una función", token)
+            self.advance()
+            names = [self.expect("ID").value]
+            while self.current() and self.current().type == "COMMA":
+                self.advance()
+                names.append(self.expect("ID").value)
+            if len(names) != len(set(names)):
+                raise self.error(f"Declaración {kind.lower()} repetida", token)
+            stmt = (kind.lower(), names)
+        elif kind in ("SHOW", "SAY", "WAIT"):
+            self.advance()
+            self.expect("LPAREN")
+            expr = self.parse_expression()
+            self.expect("RPAREN")
+            stmt = (kind.lower(), expr)
+        elif kind == "ASK":
+            # ask is also an expression; as a standalone statement its value
+            # is simply discarded, matching calls such as input(...).
+            stmt = ("expr_stmt", self.parse_expression())
+        elif kind == "EXIT":
+            stmt = self.parse_exit()
+        elif kind == "PASS":
+            self.advance()
+            stmt = ("pass",)
+        elif kind == "LOOP":
+            stmt = self.parse_loop()
+        elif kind == "UNTIL":
+            stmt = self.parse_until()
+        elif kind == "UNLESS":
+            stmt = self.parse_unless()
+        elif kind == "EACH":
+            stmt = self.parse_each()
+        elif kind == "NUMBER" and self.peek() and self.peek().type == "TIMES":
+            stmt = self.parse_times()
+        elif kind == "ID":
+            stmt = self.parse_expression_statement()
+        else:
+            raise self.error(f"Declaración no reconocida ({kind})", token)
+
+        self.source_map[id(stmt)] = token
+        return stmt
+
+    def _at_statement_end(self) -> bool:
+        token = self.current()
+        return token is None or token.type in {
+            "NEWLINE", "END", "ELSE", "ELIF", "RBRACE"
+        }
+
+    def _module_name(self) -> str:
+        parts = [self.expect("ID").value]
+        while self.current() and self.current().type == "DOT":
+            self.advance()
+            parts.append(self.expect("ID").value)
+        return ".".join(parts)
+
     def parse_import(self):
         self.advance()
-        module = self.expect('ID')[1]
+        module = self._module_name()
         alias = None
-        if self.current() and self.current()[0] == 'AS':
+        if self.current() and self.current().type == "AS":
             self.advance()
-            alias = self.expect('ID')[1]
-        return ('import', module, alias)
-    
+            alias = self.expect("ID").value
+        return ("import", module, alias)
+
     def parse_from_import(self):
         self.advance()
-        module = self.expect('ID')[1]
-        self.expect('IMPORT')
-        items = [self.expect('ID')[1]]
-        while self.current() and self.current()[0] == 'COMMA':
+        module = self._module_name()
+        self.expect("IMPORT")
+        items = []
+        while True:
+            name = self.expect("ID").value
+            alias = None
+            if self.current() and self.current().type == "AS":
+                self.advance()
+                alias = self.expect("ID").value
+            items.append((name, alias))
+            if not self.current() or self.current().type != "COMMA":
+                break
             self.advance()
-            items.append(self.expect('ID')[1])
-        return ('from_import', module, items)
-    
+            if self.current() and self.current().type == "NEWLINE":
+                self.skip_newlines()
+        return ("from_import", module, items)
+
     def parse_let(self):
         self.advance()
-        name = self.expect('ID')[1]
-        self.expect('ASSIGN')
-        value = self.parse_expression()
-        return ('let', name, value)
-    
-    def parse_assignment(self):
-        name = self.expect('ID')[1]
-        self.expect('ASSIGN')
-        value = self.parse_expression()
-        return ('assign', name, value)
-    
-    def parse_index_assignment(self):
-        name = self.expect('ID')[1]
-        self.expect('LBRACKET')
-        index = self.parse_expression()
-        self.expect('RBRACKET')
-        self.expect('ASSIGN')
-        value = self.parse_expression()
-        return ('index_assign', name, index, value)
-    
-    def parse_print(self):
-        self.advance()
-        self.expect('LPAREN')
+        name = self.expect("ID").value
+        self.expect("ASSIGN")
+        return ("let", name, self.parse_expression())
+
+    def parse_expression_statement(self):
+        token = self.current()
         expr = self.parse_expression()
-        self.expect('RPAREN')
-        return ('print', expr)
-    
+        if self.current() and self.current().type == "ASSIGN":
+            self.advance()
+            value = self.parse_expression()
+            if expr[0] == "var":
+                return ("assign", expr[1], value)
+            if expr[0] == "index":
+                return ("index_assign", expr[1], expr[2], value)
+            if expr[0] == "attr":
+                return ("attr_assign", expr[1], expr[2], value)
+            raise self.error("El destino de asignación debe ser una variable, índice o atributo", token)
+        if expr[0] not in ("call", "method", "builtin"):
+            raise self.error("Se esperaba una llamada o una asignación", token)
+        return ("expr_stmt", expr)
+
+    def _parse_block(self, stop_types):
+        body = []
+        self.skip_newlines()
+        while self.current() and self.current().type not in stop_types:
+            before = self.pos
+            body.append(self.parse_statement())
+            if self.pos == before:
+                raise self.error("El parser no pudo avanzar")
+            if (self.current() and self.current().type != "NEWLINE"
+                    and self.current().type not in stop_types):
+                raise self.error("Se esperaba un salto de línea entre declaraciones")
+            self.skip_newlines()
+        return body
+
     def parse_if(self):
         self.advance()
         condition = self.parse_expression()
-        body = []
-        while self.current() and self.current()[0] not in ('ELSE', 'ELIF', 'END'):
-            body.append(self.parse_statement())
-        
-        elif_branches = []
-        while self.current() and self.current()[0] == 'ELIF':
+        branches = []
+        body = self._parse_block({"ELSE", "ELIF", "END"})
+        while self.current() and self.current().type == "ELIF":
             self.advance()
-            elif_cond = self.parse_expression()
-            elif_body = []
-            while self.current() and self.current()[0] not in ('ELSE', 'ELIF', 'END'):
-                elif_body.append(self.parse_statement())
-            elif_branches.append((elif_cond, elif_body))
-        
+            elif_condition = self.parse_expression()
+            elif_body = self._parse_block({"ELSE", "ELIF", "END"})
+            branches.append((elif_condition, elif_body))
         else_body = []
-        if self.current() and self.current()[0] == 'ELSE':
+        if self.current() and self.current().type == "ELSE":
             self.advance()
-            while self.current() and self.current()[0] != 'END':
-                else_body.append(self.parse_statement())
-        
-        self.expect('END')
-        return ('if', condition, body, elif_branches, else_body)
-    
+            else_body = self._parse_block({"END"})
+        self.expect("END")
+        return ("if", condition, body, branches, else_body)
+
+    def _parse_loop_body(self):
+        self.loop_depth += 1
+        try:
+            body = self._parse_block({"END"})
+            self.expect("END")
+            return body
+        finally:
+            self.loop_depth -= 1
+
     def parse_repeat(self):
         self.advance()
         times = self.parse_expression()
-        body = []
-        while self.current() and self.current()[0] != 'END':
-            body.append(self.parse_statement())
-        self.expect('END')
-        return ('repeat', times, body)
-    
+        return ("repeat", times, self._parse_loop_body())
+
+    def parse_times(self):
+        times = self.parse_expression()
+        self.expect("TIMES")
+        if self.current() and self.current().type == "DO":
+            self.advance()
+        return ("repeat", times, self._parse_loop_body())
+
     def parse_while(self):
         self.advance()
         condition = self.parse_expression()
-        body = []
-        while self.current() and self.current()[0] != 'END':
-            body.append(self.parse_statement())
-        self.expect('END')
-        return ('while', condition, body)
-    
+        return ("while", condition, self._parse_loop_body())
+
     def parse_for(self):
         self.advance()
-        var = self.expect('ID')[1]
-        self.expect('IN')
+        var = self.expect("ID").value
+        self.expect("IN")
         iterable = self.parse_expression()
-        body = []
-        while self.current() and self.current()[0] != 'END':
-            body.append(self.parse_statement())
-        self.expect('END')
-        return ('for', var, iterable, body)
-    
+        return ("for", var, iterable, self._parse_loop_body())
+
     def parse_func(self):
         self.advance()
-        name = self.expect('ID')[1]
-        self.expect('LPAREN')
+        name = self.expect("ID").value
+        self.expect("LPAREN")
         params = []
-        if self.current() and self.current()[0] == 'ID':
-            params.append(self.expect('ID')[1])
-            while self.current() and self.current()[0] == 'COMMA':
-                self.advance()
-                params.append(self.expect('ID')[1])
-        self.expect('RPAREN')
-        
-        body = []
-        while self.current() and self.current()[0] != 'END':
-            body.append(self.parse_statement())
-        self.expect('END')
-        return ('func', name, params, body)
-    
-    def parse_return(self):
-        self.advance()
-        value = self.parse_expression() if self.current() and self.current()[0] != 'END' else None
-        return ('return', value)
-    
-    def parse_call(self):
-        name = self.expect('ID')[1]
-        self.expect('LPAREN')
-        args = []
-        if self.current() and self.current()[0] != 'RPAREN':
-            args.append(self.parse_expression())
-            while self.current() and self.current()[0] == 'COMMA':
-                self.advance()
-                args.append(self.parse_expression())
-        self.expect('RPAREN')
-        return ('call', name, args)
-    
-    def parse_method_call(self):
-        obj = self.expect('ID')[1]
-        methods = []
-        
-        while self.current() and self.current()[0] == 'DOT':
-            self.expect('DOT')
-            method = self.expect('ID')[1]
-            self.expect('LPAREN')
-            args = []
-            if self.current() and self.current()[0] != 'RPAREN':
-                args.append(self.parse_expression())
-                while self.current() and self.current()[0] == 'COMMA':
-                    self.advance()
-                    args.append(self.parse_expression())
-            self.expect('RPAREN')
-            methods.append((method, args))
-        
-        # Si solo hay un método, devolver formato simple
-        if len(methods) == 1:
-            return ('method_call', obj, methods[0][0], methods[0][1])
-        
-        # Si hay múltiples, encadenar
-        return ('chained_method_call', obj, methods)
-    
-    def parse_expression(self):
-        return self.parse_logical_or()
-    
-    def parse_logical_or(self):
-        left = self.parse_logical_and()
-        while self.current() and self.current()[0] == 'OR':
-            self.advance()
-            right = self.parse_logical_and()
-            left = ('binop', 'OR', left, right)
-        return left
-    
-    def parse_logical_and(self):
-        left = self.parse_comparison()
-        while self.current() and self.current()[0] == 'AND':
-            self.advance()
-            right = self.parse_comparison()
-            left = ('binop', 'AND', left, right)
-        return left
-    
-    def parse_comparison(self):
-        left = self.parse_additive()
-        while self.current() and self.current()[0] in ('EQ', 'NEQ', 'LT', 'GT', 'LTE', 'GTE'):
-            op = self.current()[0]
-            self.advance()
-            right = self.parse_additive()
-            left = ('binop', op, left, right)
-        return left
-    
-    def parse_additive(self):
-        left = self.parse_multiplicative()
-        while self.current() and self.current()[0] in ('PLUS', 'MINUS'):
-            op = self.current()[0]
-            self.advance()
-            right = self.parse_multiplicative()
-            left = ('binop', op, left, right)
-        return left
-    
-    def parse_multiplicative(self):
-        left = self.parse_unary()
-        while self.current() and self.current()[0] in ('MULT', 'DIV', 'MOD'):
-            op = self.current()[0]
-            self.advance()
-            right = self.parse_unary()
-            left = ('binop', op, left, right)
-        return left
-    
-    def parse_unary(self):
-        if self.current() and self.current()[0] == 'NOT':
-            self.advance()
-            expr = self.parse_unary()
-            return ('unary', 'NOT', expr)
-        elif self.current() and self.current()[0] == 'MINUS':
-            self.advance()
-            expr = self.parse_unary()
-            return ('unary', 'MINUS', expr)
-        return self.parse_postfix()
-    
-    def parse_postfix(self):
-        expr = self.parse_primary()
-        
-        while self.current():
-            if self.current()[0] == 'LBRACKET':
-                self.advance()
-                index = self.parse_expression()
-                self.expect('RBRACKET')
-                expr = ('index', expr, index)
-            elif self.current()[0] == 'DOT':
-                self.advance()
-                attr = self.expect('ID')[1]
-                if self.current() and self.current()[0] == 'LPAREN':
-                    self.advance()
-                    args = []
-                    if self.current() and self.current()[0] != 'RPAREN':
-                        args.append(self.parse_expression())
-                        while self.current() and self.current()[0] == 'COMMA':
-                            self.advance()
-                            args.append(self.parse_expression())
-                    self.expect('RPAREN')
-                    expr = ('method', expr, attr, args)
-                else:
-                    expr = ('attr', expr, attr)
-            else:
-                break
-        
-        return expr
-    
-    def parse_primary(self):
-        token = self.current()
-        
-        if token[0] == 'NUMBER':
-            self.advance()
-            return ('number', float(token[1]) if '.' in token[1] else int(token[1]))
-        elif token[0] == 'STRING':
-            self.advance()
-            return ('string', token[1][1:-1])
-        elif token[0] == 'BOOL':
-            self.advance()
-            return ('bool', token[1] == 'true')
-        elif token[0] == 'LBRACKET':
-            return self.parse_list()
-        elif token[0] == 'LBRACE':
-            return self.parse_dict()
-        elif token[0] in ('INPUT', 'LEN', 'TYPE', 'STR', 'INT', 'FLOAT', 'RANGE'):
-            return self.parse_builtin()
-        elif token[0] == 'ID':
-            next_token = self.peek()
-            if next_token and next_token[0] == 'LPAREN':
-                return self.parse_call()
-            self.advance()
-            return ('var', token[1])
-        elif token[0] == 'LPAREN':
-            self.advance()
-            expr = self.parse_expression()
-            self.expect('RPAREN')
-            return expr
-        
-        raise MuxError(f"❌ Expresión no válida en línea {token[2]}")
-    
-    def parse_list(self):
-        self.expect('LBRACKET')
-        elements = []
-        if self.current() and self.current()[0] != 'RBRACKET':
-            elements.append(self.parse_expression())
-            while self.current() and self.current()[0] == 'COMMA':
-                self.advance()
-                if self.current() and self.current()[0] == 'RBRACKET':
+        if self.current() and self.current().type != "RPAREN":
+            while True:
+                param = self.expect("ID").value
+                if param in params:
+                    raise self.error(f"Parámetro duplicado: {param}")
+                params.append(param)
+                if not self.current() or self.current().type != "COMMA":
                     break
-                elements.append(self.parse_expression())
-        self.expect('RBRACKET')
-        return ('list', elements)
-    
-    def parse_dict(self):
-        self.expect('LBRACE')
-        pairs = []
-        if self.current() and self.current()[0] != 'RBRACE':
-            key = self.parse_expression()
-            self.expect('COLON')
-            value = self.parse_expression()
-            pairs.append((key, value))
-            while self.current() and self.current()[0] == 'COMMA':
                 self.advance()
-                if self.current() and self.current()[0] == 'RBRACE':
+                if self.current() and self.current().type == "RPAREN":
                     break
-                key = self.parse_expression()
-                self.expect('COLON')
-                value = self.parse_expression()
-                pairs.append((key, value))
-        self.expect('RBRACE')
-        return ('dict', pairs)
-    
-    def parse_builtin(self):
-        name = self.current()[0]
-        self.advance()
-        self.expect('LPAREN')
-        args = []
-        if self.current() and self.current()[0] != 'RPAREN':
-            args.append(self.parse_expression())
-            while self.current() and self.current()[0] == 'COMMA':
-                self.advance()
-                args.append(self.parse_expression())
-        self.expect('RPAREN')
-        return ('builtin', name.lower(), args)
+        self.expect("RPAREN")
+        previous_loop_depth = self.loop_depth
+        self.loop_depth = 0  # break in a nested function cannot escape its caller.
+        self.function_depth += 1
+        try:
+            body = self._parse_block({"END"})
+            self.expect("END")
+        finally:
+            self.function_depth -= 1
+            self.loop_depth = previous_loop_depth
+        return ("func", name, params, body)
 
-    def parse_assert(self):
-        self.advance()
-        self.expect('LPAREN')
-        condition = self.parse_expression()
-        message = None
-        if self.current() and self.current()[0] == 'COMMA':
-            self.advance()
-            message = self.parse_expression()
-        self.expect('RPAREN')
-        return ('assert', condition, message)
-    
-    def parse_show(self):
-        self.advance()
-        self.expect('LPAREN')
-        expr = self.parse_expression()
-        self.expect('RPAREN')
-        return ('show', expr)
-    
-    def parse_ask(self):
-        self.advance()
-        self.expect('LPAREN')
-        prompt = self.parse_expression()
-        self.expect('RPAREN')
-        return ('ask', prompt)
-    
-    def parse_say(self):
-        self.advance()
-        self.expect('LPAREN')
-        message = self.parse_expression()
-        self.expect('RPAREN')
-        return ('say', message)
-    
-    def parse_wait(self):
-        self.advance()
-        self.expect('LPAREN')
-        seconds = self.parse_expression()
-        self.expect('RPAREN')
-        return ('wait', seconds)
-    
     def parse_exit(self):
         self.advance()
-        code = None
-        if self.current() and self.current()[0] != 'END':
-            code = self.parse_expression()
-        return ('exit', code)
-    
+        if self.current() and self.current().type == "LPAREN":
+            self.advance()
+            code = None if self.current() and self.current().type == "RPAREN" else self.parse_expression()
+            self.expect("RPAREN")
+        else:
+            code = None if self._at_statement_end() else self.parse_expression()
+        return ("exit", code)
+
     def parse_loop(self):
         self.advance()
-        body = []
-        while self.current() and self.current()[0] != 'END':
-            body.append(self.parse_statement())
-        self.expect('END')
-        return ('loop', body)
-    
-    def parse_times(self):
-        # N times do ... end
-        # Buscar hacia atrás el número
-        return ('times', 5, [])
-    
+        return ("loop", self._parse_loop_body())
+
     def parse_until(self):
         self.advance()
         condition = self.parse_expression()
-        body = []
-        while self.current() and self.current()[0] != 'END':
-            body.append(self.parse_statement())
-        self.expect('END')
-        return ('until', condition, body)
-    
+        return ("until", condition, self._parse_loop_body())
+
     def parse_unless(self):
         self.advance()
         condition = self.parse_expression()
-        body = []
-        while self.current() and self.current()[0] != 'END':
-            body.append(self.parse_statement())
-        self.expect('END')
-        return ('unless', condition, body)
-    
+        self.skip_newlines()
+        body = self._parse_block({"END"})
+        self.expect("END")
+        return ("unless", condition, body)
+
     def parse_each(self):
         self.advance()
-        var = self.expect('ID')[1]
-        self.expect('IN')
+        var = self.expect("ID").value
+        self.expect("IN")
         iterable = self.parse_expression()
-        body = []
-        while self.current() and self.current()[0] != 'END':
-            body.append(self.parse_statement())
-        self.expect('END')
-        return ('each', var, iterable, body)
+        return ("each", var, iterable, self._parse_loop_body())
+
+    def parse_assert(self):
+        self.advance()
+        self.expect("LPAREN")
+        condition = self.parse_expression()
+        message = None
+        if self.current() and self.current().type == "COMMA":
+            self.advance()
+            message = self.parse_expression()
+        self.expect("RPAREN")
+        return ("assert", condition, message)
+
+    def parse_expression(self):
+        return self.parse_logical_or()
+
+    def parse_logical_or(self):
+        left = self.parse_logical_and()
+        while self.current() and self.current().type == "OR":
+            self.advance()
+            left = ("binop", "OR", left, self.parse_logical_and())
+        return left
+
+    def parse_logical_and(self):
+        left = self.parse_comparison()
+        while self.current() and self.current().type == "AND":
+            self.advance()
+            left = ("binop", "AND", left, self.parse_comparison())
+        return left
+
+    def parse_comparison(self):
+        left = self.parse_additive()
+        while self.current() and self.current().type in ("EQ", "NEQ", "LT", "GT", "LTE", "GTE"):
+            op = self.advance().type
+            left = ("binop", op, left, self.parse_additive())
+        return left
+
+    def parse_additive(self):
+        left = self.parse_multiplicative()
+        while self.current() and self.current().type in ("PLUS", "MINUS"):
+            op = self.advance().type
+            left = ("binop", op, left, self.parse_multiplicative())
+        return left
+
+    def parse_multiplicative(self):
+        left = self.parse_unary()
+        while self.current() and self.current().type in ("MULT", "DIV", "MOD"):
+            op = self.advance().type
+            left = ("binop", op, left, self.parse_unary())
+        return left
+
+    def parse_unary(self):
+        if self.current() and self.current().type in ("NOT", "MINUS"):
+            op = self.advance().type
+            return ("unary", op, self.parse_unary())
+        return self.parse_postfix()
+
+    def parse_postfix(self):
+        expr = self.parse_primary()
+        while self.current():
+            if self.current().type == "LBRACKET":
+                self.advance()
+                index = self.parse_expression()
+                self.expect("RBRACKET")
+                expr = ("index", expr, index)
+            elif self.current().type == "DOT":
+                self.advance()
+                name = self.expect("ID").value
+                if self.current() and self.current().type == "LPAREN":
+                    self.advance()
+                    args = self._parse_arguments("RPAREN")
+                    self.expect("RPAREN")
+                    expr = ("method", expr, name, args)
+                else:
+                    expr = ("attr", expr, name)
+            else:
+                break
+        return expr
+
+    def parse_primary(self):
+        token = self.current()
+        if token is None:
+            raise self.error("Expresión incompleta al final del archivo", token)
+        if token.type == "NUMBER":
+            self.advance()
+            return ("number", float(token.value) if "." in token.value else int(token.value))
+        if token.type == "STRING":
+            self.advance()
+            return ("string", ast.literal_eval(token.value))
+        if token.type == "BOOL":
+            self.advance()
+            return ("bool", token.value == "true")
+        if token.type == "NULL":
+            self.advance()
+            return ("null", None)
+        if token.type == "LBRACKET":
+            return self.parse_list()
+        if token.type == "LBRACE":
+            return self.parse_dict()
+        if token.type in ("INPUT", "ASK", "LEN", "TYPE", "STR", "INT", "FLOAT", "RANGE"):
+            return self.parse_builtin()
+        if token.type == "ID":
+            name = self.advance().value
+            if self.current() and self.current().type == "LPAREN":
+                self.advance()
+                args = self._parse_arguments("RPAREN")
+                self.expect("RPAREN")
+                return ("call", name, args)
+            return ("var", name)
+        if token.type == "LPAREN":
+            self.advance()
+            expr = self.parse_expression()
+            self.expect("RPAREN")
+            return expr
+        raise self.error(f"Token {token.type} no puede iniciar una expresión", token)
+
+    def _parse_arguments(self, end_type: str):
+        args = []
+        if self.current() and self.current().type != end_type:
+            while True:
+                args.append(self.parse_expression())
+                if not self.current() or self.current().type != "COMMA":
+                    break
+                self.advance()
+                if self.current() and self.current().type == end_type:
+                    break
+        return args
+
+    def parse_list(self):
+        self.expect("LBRACKET")
+        elements = self._parse_arguments("RBRACKET")
+        self.expect("RBRACKET")
+        return ("list", elements)
+
+    def parse_dict(self):
+        self.expect("LBRACE")
+        pairs = []
+        if self.current() and self.current().type != "RBRACE":
+            while True:
+                key = self.parse_expression()
+                self.expect("COLON")
+                value = self.parse_expression()
+                pairs.append((key, value))
+                if not self.current() or self.current().type != "COMMA":
+                    break
+                self.advance()
+                if self.current() and self.current().type == "RBRACE":
+                    break
+        self.expect("RBRACE")
+        return ("dict", pairs)
+
+    def parse_builtin(self):
+        name = self.advance().type.lower()
+        self.expect("LPAREN")
+        args = self._parse_arguments("RPAREN")
+        self.expect("RPAREN")
+        return ("builtin", name, args)

@@ -1,213 +1,94 @@
-# Inicio Rápido con Mux
-**Creador: MushhX**
+# Inicio rápido
 
-## Instalación en 30 segundos
+## Instalación
 
-```bash
-# Clonar repositorio
-git clone https://github.com/MushhX/Mux.git
-cd mux
+Desde la raíz del repositorio:
 
-# Instalar
-pip install -e .
-
-# Probar
-mux examples/hola_mundo.mux
-```
-
-## Tu Primer Programa
-
-Crea un archivo `hola.mux`:
-
-```mux
-print("¡Hola, Mundo!")
-
-let nombre = input("¿Cómo te llamas? ")
-print("¡Hola, " + nombre + "!")
-```
-
-Ejecuta:
-```bash
-mux hola.mux
-```
-
-## Ejemplos Rápidos
-
-### Variables y Operaciones
-```mux
-let edad = 25
-let nombre = "Ana"
-let activo = true
-
-let suma = 10 + 5
-let resultado = suma * 2
-print(resultado)  # 30
-```
-
-### Condicionales
-```mux
-let edad = 18
-
-if edad >= 18
-    print("Mayor de edad")
-elif edad >= 13
-    print("Adolescente")
-else
-    print("Niño")
-end
-```
-
-### Bucles
-```mux
-# Repeat
-repeat 5
-    print("Hola")
-end
-
-# While
-let i = 0
-while i < 5
-    print(i)
-    i = i + 1
-end
-
-# For
-for num in [1, 2, 3, 4, 5]
-    print(num)
-end
-
-for i in range(10)
-    print(i)
-end
-```
-
-### Funciones
-```mux
-func saludar(nombre)
-    print("Hola, " + nombre)
-end
-
-func sumar(a, b)
-    return a + b
-end
-
-saludar("Mux")
-let resultado = sumar(10, 20)
-print(resultado)  # 30
-```
-
-### Listas
-```mux
-let numeros = [1, 2, 3, 4, 5]
-print(numeros[0])  # 1
-
-numeros.append(6)
-print(numeros)  # [1, 2, 3, 4, 5, 6]
-
-for num in numeros
-    print(num)
-end
-```
-
-### Diccionarios
-```mux
-let persona = {
-    "nombre": "Ana",
-    "edad": 25,
-    "ciudad": "Madrid"
-}
-
-print(persona["nombre"])  # Ana
-persona["edad"] = 26
-```
-
-### Importar Módulos
-```mux
-import math
-
-print(pi)  # 3.14159...
-print(sqrt(16))  # 4.0
-print(pow(2, 8))  # 256
-```
-
-## Ejemplos Incluidos
-
-Explora la carpeta `examples/`:
-
-```bash
-# Básicos
-mux examples/hola_mundo.mux
-mux examples/variables.mux
-mux examples/condicionales.mux
-mux examples/bucles.mux
-mux examples/funciones.mux
-
-# Estructuras de datos
-mux examples/listas_y_diccionarios.mux
-
-# Aplicaciones
-mux examples/calculadora.mux
-mux examples/fibonacci.mux
-mux examples/matematicas.mux
-
-# Interactivos (requieren input)
-mux examples/todo_list.mux
-mux examples/juego_adivinanza.mux
-
-# Bots (requieren configuración)
-mux examples/bot_discord.mux
-mux examples/bot_telegram.mux
-mux examples/web_app.mux
-```
-
-## Crear un Ejecutable
-
-```bash
-# Instalar PyInstaller
-pip install pyinstaller
-
-# Compilar
-python build_exe.py
-
-# Usar ejecutable
-./dist/mux examples/hola_mundo.mux
-```
-
-## Gestor de Paquetes
-
-```bash
-# Listar paquetes
-mux-pkg list
-
-# Instalar paquete
-mux-pkg install nombre_paquete
-
-# Desinstalar
-mux-pkg remove nombre_paquete
-```
-
-## Próximos Pasos
-
-1. Lee [README.md](README.md) para documentación completa
-2. Explora [FEATURES.md](FEATURES.md) para ver todas las características
-3. Revisa [ROADMAP.md](ROADMAP.md) para ver el futuro de Mux
-4. Contribuye siguiendo [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## Ayuda
-
-```bash
-mux --help
+```console
+python -m pip install .
 mux --version
+mux examples/hola_mundo.mux
 ```
 
-## Recursos
+Requiere Python 3.8 o posterior. Para instalar en modo editable durante el desarrollo, usa `python -m pip install -e .`.
 
-- Documentación: [README.md](README.md)
-- Ejemplos: `examples/`
-- Librería estándar: `mux_lang/stdlib/`
+## Primer programa
 
----
+Guarda lo siguiente como `hola.mux`:
 
-**¡Empieza a programar con Mux ahora!** 🚀
+```mux
+let nombre = ask("¿Cómo te llamas?")
+print("Hola, " + nombre)
+```
 
-Creado por MushhX 🌍⚙️
+Y ejecútalo con `mux hola.mux`.
+
+## Sintaxis básica
+
+```mux
+let total = 0
+for numero in range(1, 6)
+    total = total + numero
+end
+
+if total == 15
+    print("La suma es " + str(total))
+else
+    print("Algo ha fallado")
+end
+
+func duplicar(valor)
+    return valor * 2
+end
+
+print(duplicar(total))
+```
+
+También existen `repeat N`, `N times do`, `while`, `each`, `until`, `unless`, `loop`, `break` y `continue`. Cada instrucción ocupa su línea; los bloques terminan con `end`.
+
+## Colecciones y módulos
+
+```mux
+let persona = {"nombre": "Ana", "edad": 25}
+persona["edad"] = 26
+let numeros = [1, 2, 3]
+numeros.append(4)
+
+import math as m
+print(m.sqrt(16))
+```
+
+Consulta [STDLIB_REFERENCE.md](STDLIB_REFERENCE.md) para los módulos, funciones y extras opcionales.
+
+## CLI
+
+```console
+mux --check hola.mux
+mux --tokens hola.mux
+mux --ast hola.mux
+mux --max-steps 10000 hola.mux
+mux --repl
+```
+
+Para leer el programa desde la entrada estándar, usa `mux -`.
+
+## Paquetes Mux
+
+El gestor instala paquetes locales o archivos ZIP HTTPS verificados:
+
+```console
+mux-pkg install ./saludos --name saludos
+mux-pkg list
+mux-pkg remove saludos
+```
+
+Las descargas HTTPS también requieren `--sha256 HASH` y `--name nombre`. No hay un registro remoto configurado. El manifiesto opcional se llama `mux-package.json`; su propiedad `main` debe apuntar a un archivo `.mux` del paquete.
+
+## Compilar
+
+```console
+python -m pip install ".[build]"
+python build_exe.py
+```
+
+La compilación usa PyInstaller para el sistema operativo actual. En Windows, `python build_installer.py` genera un instalador si Inno Setup está instalado.

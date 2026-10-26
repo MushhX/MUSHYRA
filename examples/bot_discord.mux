@@ -1,24 +1,19 @@
 # Bot de Discord en Mux
-# Creador: MushhX
+# Define MUX_DISCORD_TOKEN antes de ejecutarlo.
 
 import discord_bot
+import env
 
-let token = "TU_TOKEN_AQUI"
-let bot = crear_bot(token)
+let bot = discord_bot.crear_bot(env.require("MUX_DISCORD_TOKEN"))
 
-# Comando de saludo
 func saludar_handler()
-    print("¡Hola desde Discord!")
+    return "¡Hola desde Discord!"
 end
 
-comando(bot, "hola", saludar_handler)
-
-# Comando de información
 func info_handler()
-    print("Bot creado con Mux por MushhX")
+    return "Bot creado con Mux"
 end
 
-comando(bot, "info", info_handler)
-
-print("Iniciando bot de Discord...")
-iniciar_bot(bot)
+discord_bot.comando(bot, "hola", saludar_handler)
+discord_bot.comando(bot, "info", info_handler)
+discord_bot.iniciar_bot(bot)

@@ -1,127 +1,86 @@
-"""
-Script para construir el instalador de Mux
-Creador: MushhX
-
-Requiere Inno Setup instalado en Windows
-Descarga desde: https://jrsoftware.org/isdl.php
-"""
+"""Build the Windows installer with Inno Setup."""
 
 import os
-import sys
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
+from mux_lang._version import __version__
+
+
+ROOT = Path(__file__).resolve().parent
+
+
 def find_inno_setup():
-    """Buscar instalación de Inno Setup"""
-    
-    # Rutas comunes de Inno Setup
-    possible_paths = [
-        r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
-        r"C:\Program Files\Inno Setup 6\ISCC.exe",
-        r"C:\Program Files (x86)\Inno Setup 5\ISCC.exe",
-        r"C:\Program Files\Inno Setup 5\ISCC.exe",
-    ]
-    
-    for path in possible_paths:
-        if os.path.exists(path):
-            return path
-    
+    executable = shutil.which("ISCC.exe") or shutil.which("ISCC")
+    if executable:
+        return Path(executable)
+    for candidate in (
+        Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")) / "Inno Setup 6" / "ISCC.exe",
+        Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / "Inno Setup 6" / "ISCC.exe",
+    ):
+        if candidate.is_file():
+            return candidate
     return None
 
-def check_requirements():
-    """Verificar que todo esté listo"""
-    
-    print("🔍 Verificando requisitos...")
-    
-    # Verificar que existe el ejecutable
-    if not os.path.exists("dist/mux.exe"):
-        print("❌ No se encontró dist/mux.exe")
-        print("   Ejecuta primero: python build_exe.py")
-        return False
-    
-    print("✅ Ejecutable encontrado")
-    
-    # Verificar que existe el script de Inno Setup
-    if not os.path.exists("installer.iss"):
-        print("❌ No se encontró installer.iss")
-        return False
-    
-    print("✅ Script de instalador encontrado")
-    
-    # Verificar icono
-    if not os.path.exists("mux_icon.ico"):
-        print("⚠️ No se encontró mux_icon.ico")
-        print("   Creando icono...")
-        try:
-            subprocess.run([sys.executable, "create_icon.py"], check=True)
-        except:
-            print("   No se pudo crear el icono automáticamente")
-            print("   El instalador se creará sin icono personalizado")
-    else:
-        print("✅ Icono encontrado")
-    
-    return True
 
 def build_installer():
-    """Construir el instalador"""
-    
-    print("\n🔨 Construyendo instalador de Mux...")
-    print("   Creador: MushhX\n")
-    
-    # Verificar requisitos
-    if not check_requirements():
-        sys.exit(1)
-    
-    # Buscar Inno Setup
-    iscc_path = find_inno_setup()
-    
-    if not iscc_path:
-        print("\n❌ Inno Setup no está instalado")
-        print("\nPara instalar Inno Setup:")
-        print("1. Descarga desde: https://jrsoftware.org/isdl.php")
-        print("2. Instala Inno Setup")
-        print("3. Ejecuta este script nuevamente")
-        print("\nAlternativamente, puedes abrir installer.iss con Inno Setup manualmente")
-        sys.exit(1)
-    
-    print(f"✅ Inno Setup encontrado: {iscc_path}\n")
-    
-    # Crear carpeta de salida
-    os.makedirs("installer_output", exist_ok=True)
-    
-    # Compilar instalador
-    print("Compilando instalador...")
+    if sys.platform != "win32":
+        print("El instalador Inno Setup solo se puede crear en Windows", file=sys.stderr)
+        return 1
+    if sys.maxsize <= 2 ** 32:
+        print("Compila el instalador con Python de 64 bits", file=sys.stderr)
+        return 1
+    executable = ROOT / "dist" / "mux.exe"
+    if not executable.is_file():
+        print("No existe dist/mux.exe; ejecuta primero python build_exe.py", file=sys.stderr)
+        return 1
+    compiler = find_inno_setup()
+    if compiler is None:
+        print("No se encontró Inno Setup 6 (ISCC.exe)", file=sys.stderr)
+        return 1
+
+    icon = ROOT / "mux_icon.ico"
+    if not icon.is_file():
+        try:
+            result = subprocess.run([sys.executable, str(ROOT / "create_icon.py")], cwd=str(ROOT), check=False)
+        except OSError as exc:
+            print(f"No se pudo crear el icono: {exc}", file=sys.stderr)
+            return 1
+        if result.returncode or not icon.is_file():
+            print('No se creó mux_icon.ico. Instala las dependencias con python -m pip install ".[build]"', file=sys.stderr)
+            return 1
+
+    build_dir = ROOT / "build"
+    build_dir.mkdir(exist_ok=True)
+    template_path = ROOT / "installer.iss"
+    generated = build_dir / "installer.generated.iss"
+    template = template_path.read_text(encoding="utf-8")
+    template = template.replace("@MUX_VERSION@", __version__)
+    template = template.replace("@MUX_ROOT@", str(ROOT.resolve()).replace("/", "\\"))
+    template = template.replace("@MUX_OUTPUT_DIR@", str((ROOT / "installer_output").resolve()).replace("/", "\\"))
+    with generated.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(template)
+    output_dir = ROOT / "installer_output"
+    output_dir.mkdir(exist_ok=True)
     try:
         result = subprocess.run(
-            [iscc_path, "installer.iss"],
-            capture_output=True,
-            text=True,
-            check=True
+            [str(compiler), "/Qp", str(generated)],
+            cwd=str(ROOT), check=False,
         )
-        
-        print(result.stdout)
-        
-        print("\n✅ ¡Instalador creado exitosamente!")
-        print(f"\n📦 Instalador creado en: installer_output\\mux-setup-1.0.0.exe")
-        print("\nPuedes distribuir este instalador a otros usuarios.")
-        print("El instalador incluye:")
-        print("  • Ejecutable de Mux (7.89 MB)")
-        print("  • Librería estándar (15 módulos)")
-        print("  • Ejemplos (20+ archivos)")
-        print("  • Documentación completa")
-        print("\nCaracterísticas del instalador:")
-        print("  • Instalación en Program Files")
-        print("  • Opción de agregar al PATH")
-        print("  • Accesos directos en menú inicio")
-        print("  • Desinstalador incluido")
-        
-    except subprocess.CalledProcessError as e:
-        print(f"\n❌ Error al compilar instalador:")
-        print(e.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"\n❌ Error inesperado: {e}")
-        sys.exit(1)
+    except OSError as exc:
+        print(f"No se pudo iniciar Inno Setup: {exc}", file=sys.stderr)
+        return 1
+    if result.returncode:
+        return result.returncode
+    artifact = output_dir / f"mux-setup-{__version__}.exe"
+    if not artifact.is_file():
+        print(f"Inno Setup terminó sin crear {artifact}", file=sys.stderr)
+        return 1
+    print(f"Instalador creado: {artifact}")
+    return 0
 
-if __name__ == '__main__':
-    build_installer()
+
+if __name__ == "__main__":
+    raise SystemExit(build_installer())

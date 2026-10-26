@@ -7,6 +7,8 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+installer_output/
+mux-portable-*.zip
 downloads/
 eggs/
 .eggs/
@@ -19,6 +21,9 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.db
+*.sqlite
+*.sqlite3
 
 # PyInstaller
 *.manifest
@@ -47,7 +52,8 @@ Thumbs.db
 # Mux
 .mux/
 *.mux.bak
-mux_main.py
+mux_icon.ico
+mux_icon.png
 
 # Testing
 .pytest_cache/

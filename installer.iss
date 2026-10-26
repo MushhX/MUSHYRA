@@ -2,7 +2,7 @@
 ; Creador: MushhX
 
 #define MyAppName "Mux Programming Language"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "@MUX_VERSION@"
 #define MyAppPublisher "MushhX"
 #define MyAppURL "https://github.com/mushhx/mux"
 #define MyAppExeName "mux.exe"
@@ -17,18 +17,19 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/issues
 AppUpdatesURL={#MyAppURL}/releases
-DefaultDirName={autopf}\Mux
+DefaultDirName={localappdata}\Programs\Mux
 DefaultGroupName=Mux Programming Language
 AllowNoIcons=yes
-LicenseFile=LICENSE
-InfoBeforeFile=INSTALL.md
-OutputDir=installer_output
+LicenseFile=@MUX_ROOT@\LICENSE
+InfoBeforeFile=@MUX_ROOT@\INSTALL.md
+OutputDir=@MUX_OUTPUT_DIR@
 OutputBaseFilename=mux-setup-{#MyAppVersion}
-SetupIconFile=mux_icon.ico
+SetupIconFile=@MUX_ROOT@\mux_icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64
 PrivilegesRequired=lowest
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
@@ -39,27 +40,24 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "addtopath"; Description: "Agregar Mux al PATH del sistema"; GroupDescription: "Opciones del sistema:"; Flags: unchecked
+Name: "addtopath"; Description: "Agregar Mux al PATH del usuario"; GroupDescription: "Opciones del sistema:"; Flags: unchecked
 
 [Files]
 ; Ejecutable principal
-Source: "dist\mux.exe"; DestDir: "{app}"; Flags: ignoreversion
-
-; Librería estándar
-Source: "mux_lang\stdlib\*"; DestDir: "{app}\mux_lang\stdlib"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "@MUX_ROOT@\dist\mux.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Ejemplos
-Source: "examples\*"; DestDir: "{app}\examples"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "@MUX_ROOT@\examples\*"; DestDir: "{app}\examples"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Documentación
-Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
-Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
-Source: "QUICKSTART.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "FEATURES.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "STDLIB_REFERENCE.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "UNIQUE_COMMANDS.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "BOTS_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "EXECUTABLE_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MUX_ROOT@\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
+Source: "@MUX_ROOT@\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MUX_ROOT@\QUICKSTART.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MUX_ROOT@\FEATURES.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MUX_ROOT@\STDLIB_REFERENCE.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MUX_ROOT@\UNIQUE_COMMANDS.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MUX_ROOT@\BOTS_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MUX_ROOT@\EXECUTABLE_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Mux Programming Language"; Filename: "{app}\{#MyAppExeName}"
@@ -72,24 +70,68 @@ Name: "{autodesktop}\Mux"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 Filename: "{app}\README.md"; Description: "Ver documentación"; Flags: postinstall shellexec skipifsilent unchecked
 Filename: "{app}\examples"; Description: "Abrir carpeta de ejemplos"; Flags: postinstall shellexec skipifsilent unchecked
 
-[Registry]
-; Agregar al PATH si el usuario lo seleccionó
-Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Tasks: addtopath; Check: NeedsAddPath('{app}')
-
 [Code]
-function NeedsAddPath(Param: string): boolean;
+function PathContains(PathValue, Candidate: string): boolean;
 var
-  OrigPath: string;
+  Remaining, Item: string;
+  SeparatorPosition: Integer;
 begin
-  if not RegQueryStringValue(HKEY_CURRENT_USER, 'Environment', 'Path', OrigPath)
-  then begin
-    Result := True;
-    exit;
+  Result := False;
+  Remaining := PathValue;
+  while Remaining <> '' do
+  begin
+    SeparatorPosition := Pos(';', Remaining);
+    if SeparatorPosition = 0 then
+    begin
+      Item := Remaining;
+      Remaining := '';
+    end
+    else
+    begin
+      Item := Copy(Remaining, 1, SeparatorPosition - 1);
+      Delete(Remaining, 1, SeparatorPosition);
+    end;
+    if CompareText(Trim(Item), Candidate) = 0 then
+    begin
+      Result := True;
+      exit;
+    end;
   end;
-  Result := Pos(';' + Param + ';', ';' + OrigPath + ';') = 0;
+end;
+
+function RemovePathEntry(PathValue, Candidate: string): string;
+var
+  Remaining, Item: string;
+  SeparatorPosition: Integer;
+begin
+  Result := '';
+  Remaining := PathValue;
+  while Remaining <> '' do
+  begin
+    SeparatorPosition := Pos(';', Remaining);
+    if SeparatorPosition = 0 then
+    begin
+      Item := Remaining;
+      Remaining := '';
+    end
+    else
+    begin
+      Item := Copy(Remaining, 1, SeparatorPosition - 1);
+      Delete(Remaining, 1, SeparatorPosition);
+    end;
+    if (Trim(Item) <> '') and (CompareText(Trim(Item), Candidate) <> 0) then
+    begin
+      if Result <> '' then
+        Result := Result + ';';
+      Result := Result + Item;
+    end;
+  end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  OrigPath: string;
+  NewPath: string;
 begin
   if CurStep = ssPostInstall then
   begin
@@ -100,6 +142,34 @@ begin
       'Build Date: ' + GetDateTimeString('yyyy-mm-dd', '-', ':') + #13#10 +
       'Platform: Windows x64' + #13#10 +
       'Creador: MushhX' + #13#10, False);
+
+    if WizardIsTaskSelected('addtopath') then
+    begin
+      OrigPath := '';
+      RegQueryStringValue(HKEY_CURRENT_USER, 'Environment', 'Path', OrigPath);
+      if not PathContains(OrigPath, ExpandConstant('{app}')) then
+      begin
+        if OrigPath = '' then
+          NewPath := ExpandConstant('{app}')
+        else
+          NewPath := OrigPath + ';' + ExpandConstant('{app}');
+        RegWriteExpandStringValue(HKEY_CURRENT_USER, 'Environment', 'Path', NewPath);
+      end;
+    end;
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  OrigPath: string;
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    if RegQueryStringValue(HKEY_CURRENT_USER, 'Environment', 'Path', OrigPath) and
+       PathContains(OrigPath, ExpandConstant('{app}')) then
+      RegWriteExpandStringValue(
+        HKEY_CURRENT_USER, 'Environment', 'Path',
+        RemovePathEntry(OrigPath, ExpandConstant('{app}')));
   end;
 end;
 

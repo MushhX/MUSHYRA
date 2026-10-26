@@ -1,177 +1,108 @@
-"""
-Script para crear un instalador portable de Mux (sin Inno Setup)
-Creador: MushhX
+"""Create a reproducible portable ZIP for the current platform."""
 
-Crea un archivo ZIP con todo lo necesario para usar Mux
-"""
-
+import argparse
+import hashlib
 import os
-import zipfile
+import platform
 import shutil
+import sys
+import tempfile
+import zipfile
 from pathlib import Path
-from datetime import datetime
 
-def create_portable_installer():
-    """Crear instalador portable"""
-    
-    print("📦 Creando instalador portable de Mux...")
-    print("   Creador: MushhX\n")
-    
-    # Verificar que existe el ejecutable
-    if not os.path.exists("dist/mux.exe"):
-        print("❌ No se encontró dist/mux.exe")
-        print("   Ejecuta primero: python build_exe.py")
-        return False
-    
-    print("✅ Ejecutable encontrado")
-    
-    # Crear carpeta temporal
-    temp_dir = "mux_portable_temp"
-    if os.path.exists(temp_dir):
-        shutil.rmtree(temp_dir)
-    os.makedirs(temp_dir)
-    
-    print("📁 Preparando archivos...")
-    
-    # Copiar ejecutable
-    shutil.copy("dist/mux.exe", f"{temp_dir}/mux.exe")
-    print("  ✓ Ejecutable")
-    
-    # Copiar librería estándar
-    if os.path.exists("mux_lang/stdlib"):
-        shutil.copytree("mux_lang/stdlib", f"{temp_dir}/mux_lang/stdlib")
-        print("  ✓ Librería estándar")
-    
-    # Copiar ejemplos
-    if os.path.exists("examples"):
-        shutil.copytree("examples", f"{temp_dir}/examples")
-        print("  ✓ Ejemplos")
-    
-    # Copiar documentación
-    docs = [
-        "README.md",
-        "LICENSE",
-        "QUICKSTART.md",
-        "FEATURES.md",
-        "STDLIB_REFERENCE.md",
-        "UNIQUE_COMMANDS.md",
-        "EXECUTABLE_GUIDE.md"
-    ]
-    
-    for doc in docs:
-        if os.path.exists(doc):
-            shutil.copy(doc, f"{temp_dir}/{doc}")
-    print("  ✓ Documentación")
-    
-    # Crear archivo de instalación
-    install_txt = """Mux Programming Language v1.0.0
-Creador: MushhX
+from mux_lang._version import __version__
 
-=== INSTALACIÓN ===
 
-Este es un instalador portable. No requiere instalación tradicional.
+ROOT = Path(__file__).resolve().parent
+DOCS = (
+    "README.md", "LICENSE", "QUICKSTART.md", "FEATURES.md", "STDLIB_REFERENCE.md",
+    "UNIQUE_COMMANDS.md", "EXECUTABLE_GUIDE.md", "INSTALL.md",
+)
 
-OPCIÓN 1: Usar desde esta carpeta
-  1. Abre una terminal (CMD o PowerShell)
-  2. Navega a esta carpeta
-  3. Ejecuta: mux.exe programa.mux
 
-OPCIÓN 2: Agregar al PATH
-  1. Copia esta carpeta a una ubicación permanente (ej: C:\\Mux)
-  2. Agrega la ruta al PATH del sistema:
-     - Windows 10/11: Busca "variables de entorno" en el menú inicio
-     - Edita la variable "Path" del usuario
-     - Agrega la ruta donde copiaste Mux
-  3. Reinicia la terminal
-  4. Ahora puedes usar: mux programa.mux desde cualquier lugar
+def _sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
-OPCIÓN 3: Copiar a carpeta del sistema
-  1. Copia mux.exe a C:\\Windows\\System32
-  2. Ahora puedes usar: mux programa.mux desde cualquier lugar
-  (Requiere permisos de administrador)
 
-=== PRIMEROS PASOS ===
+def _write_text(path, content):
+    with path.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(content)
 
-1. Abre la carpeta "examples"
-2. Ejecuta: mux.exe examples\\hola_mundo.mux
-3. Lee README.md para más información
 
-=== DOCUMENTACIÓN ===
+def _write_metadata(staging):
+    platform_tag = f"{platform.system().lower()}-{platform.machine().lower()}"
+    binary = "mux.exe" if os.name == "nt" else "mux"
+    install_text = f"""Mux {__version__} — paquete portable
 
-- README.md - Documentación principal
-- QUICKSTART.md - Inicio rápido
-- FEATURES.md - Características completas
-- STDLIB_REFERENCE.md - Referencia de librería estándar
-- UNIQUE_COMMANDS.md - Comandos únicos
-- EXECUTABLE_GUIDE.md - Guía del ejecutable
+1. Extrae esta carpeta.
+2. Ejecuta {binary} examples/hola_mundo.mux.
+3. Consulta README.md y QUICKSTART.md.
 
-=== SOPORTE ===
-
-GitHub: https://github.com/mushhx/mux
-Issues: https://github.com/mushhx/mux/issues
-
-=== LICENCIA ===
-
-MIT License - Ver LICENSE
-
-¡Disfruta programando con Mux! 🌍⚙️
+Las integraciones opcionales estarán incluidas solo si sus dependencias se
+instalaron en el entorno de compilación. SHA256SUMS.txt contiene los hashes
+de los archivos incluidos.
 """
-    
-    with open(f"{temp_dir}/INSTALL.txt", "w", encoding="utf-8") as f:
-        f.write(install_txt)
-    print("  ✓ Instrucciones de instalación")
-    
-    # Crear archivo de versión
-    version_txt = f"""Mux Programming Language
-Version: 1.0.0
-Build Date: {datetime.now().strftime('%Y-%m-%d')}
-Platform: Windows x64
-Creador: MushhX
+    _write_text(staging / "INSTALL.txt", install_text)
+    _write_text(
+        staging / "VERSION.txt",
+        f"Mux {__version__}\nPlatform: {platform_tag}\nArchitecture: {platform.machine()}\n",
+    )
+    manifest = []
+    for path in sorted(staging.rglob("*")):
+        if path.is_file() and path.name != "SHA256SUMS.txt":
+            manifest.append(f"{_sha256(path)}  {path.relative_to(staging).as_posix()}")
+    _write_text(staging / "SHA256SUMS.txt", "\n".join(manifest) + "\n")
+    return platform_tag
 
-Contenido:
-- mux.exe (7.89 MB)
-- Librería estándar (15 módulos)
-- Ejemplos (20+ archivos)
-- Documentación completa
-"""
-    
-    with open(f"{temp_dir}/VERSION.txt", "w", encoding="utf-8") as f:
-        f.write(version_txt)
-    print("  ✓ Información de versión")
-    
-    # Crear archivo ZIP
-    zip_name = f"mux-portable-v1.0.0-windows-x64.zip"
-    print(f"\n📦 Creando archivo ZIP: {zip_name}")
-    
-    with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirs, files in os.walk(temp_dir):
-            for file in files:
-                file_path = os.path.join(root, file)
-                arcname = os.path.relpath(file_path, temp_dir)
-                zipf.write(file_path, f"mux/{arcname}")
-    
-    # Limpiar carpeta temporal
-    shutil.rmtree(temp_dir)
-    
-    # Obtener tamaño del ZIP
-    zip_size = os.path.getsize(zip_name) / (1024 * 1024)
-    
-    print(f"\n✅ ¡Instalador portable creado exitosamente!")
-    print(f"\n📦 Archivo: {zip_name}")
-    print(f"📏 Tamaño: {zip_size:.2f} MB")
-    print(f"\n📋 Contenido:")
-    print(f"  • Ejecutable de Mux (7.89 MB)")
-    print(f"  • Librería estándar (15 módulos)")
-    print(f"  • Ejemplos (20+ archivos)")
-    print(f"  • Documentación completa")
-    print(f"  • Instrucciones de instalación")
-    print(f"\n🚀 Para usar:")
-    print(f"  1. Extrae el archivo ZIP")
-    print(f"  2. Lee INSTALL.txt para instrucciones")
-    print(f"  3. Ejecuta: mux.exe examples\\hola_mundo.mux")
-    print(f"\n💡 Este instalador portable puede ser distribuido sin necesidad de Inno Setup")
-    
-    return True
 
-if __name__ == '__main__':
-    create_portable_installer()
+def create_portable_installer(output_dir=None):
+    suffix = ".exe" if os.name == "nt" else ""
+    executable = ROOT / "dist" / f"mux{suffix}"
+    if not executable.is_file():
+        print(f"No se encontró {executable}; ejecuta primero python build_exe.py", file=sys.stderr)
+        return 1
+    output = Path(output_dir).expanduser().resolve() if output_dir else ROOT
+    output.mkdir(parents=True, exist_ok=True)
+    build_dir = ROOT / "build"
+    build_dir.mkdir(exist_ok=True)
+    try:
+        with tempfile.TemporaryDirectory(prefix="mux-portable-", dir=str(build_dir)) as temp_name:
+            staging = Path(temp_name) / "mux"
+            staging.mkdir()
+            shutil.copy2(executable, staging / executable.name)
+            shutil.copytree(ROOT / "examples", staging / "examples")
+            for name in DOCS:
+                source = ROOT / name
+                if source.is_file():
+                    shutil.copy2(source, staging / source.name)
+            platform_tag = _write_metadata(staging)
+            archive_path = output / f"mux-portable-v{__version__}-{platform_tag}.zip"
+            with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+                for path in sorted(staging.rglob("*")):
+                    if not path.is_file():
+                        continue
+                    name = path.relative_to(staging.parent).as_posix()
+                    info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+                    info.compress_type = zipfile.ZIP_DEFLATED
+                    info.external_attr = 0o100644 << 16
+                    archive.writestr(info, path.read_bytes(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+    except (OSError, shutil.Error, zipfile.BadZipFile) as exc:
+        print(f"No se pudo crear el paquete portable: {exc}", file=sys.stderr)
+        return 1
+    print(f"Paquete portable creado: {archive_path} ({archive_path.stat().st_size} bytes)")
+    return 0
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Crea un ZIP portable de Mux")
+    parser.add_argument("--output-dir", help="Carpeta de salida; por defecto el repositorio")
+    args = parser.parse_args(argv)
+    return create_portable_installer(args.output_dir)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

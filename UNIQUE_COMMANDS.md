@@ -81,7 +81,7 @@ let edad_num = int(edad)
 
 ## wait
 
-Esperar N segundos con emoji ⏳
+Esperar N segundos; informa antes de pausar con el emoji ⏳.
 
 ```mux
 say("Iniciando proceso...")
@@ -217,16 +217,16 @@ end
 
 ## pass
 
-No hacer nada (placeholder)
+No ejecutar ninguna acción y continuar con la siguiente instrucción.
 
 ```mux
 let x = 10
 if x > 5
-    pass  # TODO: implementar lógica
+    pass  # No-op mientras no haya lógica que ejecutar
 end
 
 func procesar_datos()
-    pass  # TODO: implementar
+    pass
 end
 ```
 

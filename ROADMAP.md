@@ -1,63 +1,27 @@
-# Mux Roadmap 🚀
+# Plan de desarrollo
 
-## Fase 1: Fundamentos ✅ (Completado)
-- [x] Intérprete básico funcional
-- [x] Variables (let)
-- [x] Tipos básicos (números, strings, booleanos)
-- [x] Operadores aritméticos, comparación y lógicos
-- [x] Condicionales (if/elif/else)
-- [x] Bucles (repeat, while, for)
-- [x] Funciones (func, return)
-- [x] Listas y diccionarios
-- [x] Métodos de listas y strings
-- [x] Sistema de módulos (import, from)
-- [x] Funciones builtin (print, input, len, type, str, int, float, range)
-- [x] Librería estándar (math, http, web, discord_bot, telegram_bot)
-- [x] CLI funcional
-- [x] Gestor de paquetes básico
-- [x] Compilación a .exe
-- [x] Mensajes de error comprensibles
-- [x] Ejemplos completos
+La versión declarada en el paquete es 1.1.0. Este archivo describe trabajo posible, no fechas ni compromisos de publicación.
 
-## Fase 2: Mejoras del Lenguaje (Próximo)
-- [ ] Listas/Arrays: `let lista = [1, 2, 3]`
-- [ ] Diccionarios/Maps: `let datos = {nombre: "Ana", edad: 25}`
-- [ ] Operador de acceso: `lista[0]`, `datos.nombre`
-- [ ] Bucle for-in: `for item in lista`
-- [ ] Funciones de librería estándar (len, range, input)
-- [ ] Manejo de archivos (read, write)
-- [ ] Importación de módulos
+## Lenguaje
 
-## Fase 3: Optimización
-- [ ] Compilación a bytecode propio
-- [ ] Optimizaciones de rendimiento
-- [ ] Caché de módulos importados
-- [ ] Mejor manejo de memoria
+- Diseñar clases y excepciones propias antes de añadirlas a la gramática.
+- Definir slicing, valores por defecto y semántica de tipos de forma coherente.
+- Añadir mejor soporte para Unicode y mensajes de error recuperables en el REPL.
 
-## Fase 4: Herramientas
-- [ ] REPL interactivo
-- [ ] Depurador (debugger)
-- [ ] Formateador de código (mux fmt)
-- [ ] Linter (mux lint)
-- [ ] Gestor de paquetes
+## Calidad y herramientas
 
-## Fase 5: Ecosistema
-- [ ] Documentación completa
-- [ ] Sitio web oficial
-- [ ] Tutoriales interactivos
-- [ ] Librería estándar expandida
-- [ ] Repositorio de paquetes comunitarios
+- Crear una suite de pruebas automatizadas para lexer, parser, intérprete, módulos, gestor y empaquetado.
+- Incorporar lint, formato y comprobaciones multiplataforma en CI.
+- Añadir depurador paso a paso y perfilado con líneas de origen.
+- Documentar versiones soportadas de Python y dependencias opcionales.
 
-## Fase 6: Multiplataforma
-- [ ] Binarios compilados para Windows/Linux/macOS
-- [ ] Integración con editores (VS Code, Sublime)
-- [ ] Syntax highlighting
-- [ ] Autocompletado
+## Paquetes y distribución
 
-## Ideas Futuras
-- Transpilación a JavaScript/Python
-- Soporte para programación concurrente
-- FFI (Foreign Function Interface) para C/C++
-- WebAssembly target
-- Sistema de tipos opcional
-- Macros y metaprogramación
+- Diseñar un índice remoto firmado y versionado antes de habilitar un catálogo.
+- Definir resolución de dependencias, bloqueo de versiones y desinstalación segura.
+- Publicar y verificar artefactos de Windows, macOS y Linux con hashes y procedencia.
+
+## Editor
+
+- Preparar resaltado, snippets y diagnóstico para editores comunes.
+- Valorar formateador y linter después de estabilizar la gramática.

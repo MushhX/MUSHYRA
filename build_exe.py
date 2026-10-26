@@ -1,65 +1,53 @@
-"""
-Script para compilar Mux a ejecutable
-Creador: MushhX
-
-Uso:
-    python build_exe.py
-"""
+"""Build a standalone Mux executable for the current operating system."""
 
 import os
-import sys
 import subprocess
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent
+ENTRYPOINT = ROOT / "mux_main.py"
+
 
 def build_executable():
-    print("🔨 Compilando Mux a ejecutable...")
-    print("   Creador: MushhX\n")
-    
-    # Verificar que PyInstaller esté instalado
     try:
-        import PyInstaller
+        import PyInstaller  # noqa: F401
     except ImportError:
-        print("❌ PyInstaller no está instalado")
-        print("   Instala con: pip install pyinstaller")
-        sys.exit(1)
-    
-    # Crear archivo principal para PyInstaller
-    main_content = """
-import sys
-from mux_lang.cli import main
+        print("PyInstaller no está instalado. Ejecuta: pip install -e .[build]", file=sys.stderr)
+        return 1
+    if not ENTRYPOINT.is_file():
+        print(f"No existe el punto de entrada {ENTRYPOINT}", file=sys.stderr)
+        return 1
 
-if __name__ == '__main__':
-    main()
-"""
-    
-    with open('mux_main.py', 'w', encoding='utf-8') as f:
-        f.write(main_content)
-    
-    # Comando de PyInstaller
-    cmd = [
-        'pyinstaller',
-        '--onefile',
-        '--name=mux',
-        '--clean',
-        '--add-data=mux_lang/stdlib:mux_lang/stdlib',
-        'mux_main.py'
+    output_dir = ROOT / "dist"
+    work_dir = ROOT / "build" / "pyinstaller-work"
+    spec_dir = ROOT / "build" / "pyinstaller-spec"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    work_dir.mkdir(parents=True, exist_ok=True)
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    command = [
+        sys.executable, "-m", "PyInstaller", "--onefile", "--noconfirm", "--clean",
+        "--name", "mux", "--distpath", str(output_dir), "--workpath", str(work_dir),
+        "--specpath", str(spec_dir), str(ENTRYPOINT),
     ]
-    
-    print("Ejecutando PyInstaller...")
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    
-    if result.returncode == 0:
-        print("\n✅ ¡Compilación exitosa!")
-        print(f"   Ejecutable creado en: dist/mux{'.exe' if sys.platform == 'win32' else ''}")
-        print("\nPuedes usar el ejecutable así:")
-        print(f"   ./dist/mux{'.exe' if sys.platform == 'win32' else ''} ejemplos/hola_mundo.mux")
-    else:
-        print("\n❌ Error en la compilación:")
-        print(result.stderr)
-        sys.exit(1)
-    
-    # Limpiar archivo temporal
-    if os.path.exists('mux_main.py'):
-        os.remove('mux_main.py')
+    print("Compilando Mux para la plataforma actual...")
+    try:
+        result = subprocess.run(command, cwd=str(ROOT), check=False)
+    except OSError as exc:
+        print(f"No se pudo iniciar PyInstaller: {exc}", file=sys.stderr)
+        return 1
+    if result.returncode:
+        return result.returncode
 
-if __name__ == '__main__':
-    build_executable()
+    suffix = ".exe" if os.name == "nt" else ""
+    artifact = output_dir / f"mux{suffix}"
+    if not artifact.is_file():
+        print(f"PyInstaller terminó sin crear {artifact}", file=sys.stderr)
+        return 1
+    print(f"Ejecutable creado: {artifact}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(build_executable())

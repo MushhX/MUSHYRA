@@ -3,11 +3,17 @@ Script para crear un icono simple para Mux
 Creador: MushhX
 """
 
-from PIL import Image, ImageDraw, ImageFont
-import os
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent
 
 def create_mux_icon():
     """Crear icono de Mux"""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError as exc:
+        raise RuntimeError('Instala las dependencias con: python -m pip install ".[build]"') from exc
     
     # Tamaños de icono estándar
     sizes = [16, 32, 48, 64, 128, 256]
@@ -30,7 +36,7 @@ def create_mux_icon():
         # Intentar usar fuente del sistema
         font_size = int(size * 0.6)
         font = ImageFont.truetype("arial.ttf", font_size)
-    except:
+    except OSError:
         # Usar fuente por defecto
         font = ImageFont.load_default()
     
@@ -48,34 +54,16 @@ def create_mux_icon():
     draw.text((x, y), text, fill=text_color, font=font)
     
     # Guardar como PNG
-    img.save('mux_icon.png', 'PNG')
+    img.save(ROOT / 'mux_icon.png', 'PNG')
     print("✅ Icono PNG creado: mux_icon.png")
     
     # Intentar crear ICO
     try:
-        # Crear versiones en diferentes tamaños
-        icons = []
-        for s in sizes:
-            resized = img.resize((s, s), Image.Resampling.LANCZOS)
-            icons.append(resized)
-        
-        # Guardar como ICO
-        icons[0].save('mux_icon.ico', format='ICO', sizes=[(s, s) for s in sizes])
+        img.save(ROOT / 'mux_icon.ico', format='ICO', sizes=[(s, s) for s in sizes])
         print("✅ Icono ICO creado: mux_icon.ico")
     except Exception as e:
         print(f"⚠️ No se pudo crear ICO: {e}")
         print("   Puedes convertir mux_icon.png a ICO manualmente")
 
 if __name__ == '__main__':
-    try:
-        create_mux_icon()
-    except ImportError:
-        print("❌ Pillow no está instalado")
-        print("   Instala con: pip install Pillow")
-        print("\nCreando icono simple sin Pillow...")
-        
-        # Crear un archivo ICO básico manualmente
-        # (Este es un placeholder, el usuario debería instalar Pillow)
-        print("\n⚠️ Por favor instala Pillow para crear el icono:")
-        print("   pip install Pillow")
-        print("   python create_icon.py")
+    create_mux_icon()

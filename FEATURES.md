@@ -1,130 +1,41 @@
 # Características de Mux
-**Creador: MushhX**
 
-## Características Implementadas ✅
+## Lenguaje
 
-### Sintaxis Básica
-- ✅ Variables con `let`
-- ✅ Tipos: números, strings, booleanos
-- ✅ Operadores aritméticos: `+`, `-`, `*`, `/`, `%`
-- ✅ Operadores de comparación: `==`, `!=`, `<`, `>`, `<=`, `>=`
-- ✅ Operadores lógicos: `&&`, `||`, `!`
-- ✅ Comentarios con `#`
+- Variables con `let`, asignación posterior y valores `null`, booleanos, números y strings.
+- Listas y diccionarios, índices y asignación por índice o atributo.
+- Operadores aritméticos, comparación estricta, `&&`, `||` y `!` con evaluación corta.
+- `if`/`elif`/`else`, `repeat`, `N times [do]`, `while`, `for`, `each`, `until`, `unless` y `loop`.
+- `break` y `continue` en bucles; `pass`; funciones, `return`, `global` y `nonlocal`.
+- Llamadas `print`, `input`, `ask`, `len`, `type`, `str`, `int`, `float`, `range`, `assert`, `show`, `say`, `wait` y `exit`.
+- Imports completos, alias y `from ... import ...`.
+- Saltos de línea como separadores y `end` para cerrar bloques.
 
-### Estructuras de Control
-- ✅ Condicionales: `if`, `elif`, `else`, `end`
-- ✅ Bucle `repeat N`
-- ✅ Bucle `while condicion`
-- ✅ Bucle `for variable in iterable`
-- ✅ `break` y `continue`
+El lenguaje todavía no incluye clases, excepciones propias, generadores, async/await, comprensión de listas, slicing ni un sistema de tipos estático.
 
-### Funciones
-- ✅ Definición con `func nombre(params)`
-- ✅ Retorno con `return`
-- ✅ Parámetros y argumentos
-- ✅ Scope local y global
+## Intérprete y CLI
 
-### Estructuras de Datos
-- ✅ Listas: `[1, 2, 3]`
-- ✅ Diccionarios: `{"clave": "valor"}`
-- ✅ Acceso por índice: `lista[0]`, `dict["clave"]`
-- ✅ Modificación: `lista[0] = 10`
-- ✅ Métodos de lista: `append()`, `pop()`, `clear()`, `reverse()`, `sort()`
-- ✅ Métodos de string: `upper()`, `lower()`, `split()`, `replace()`, `strip()`
+- Lexer y parser recursivo con ubicaciones de origen.
+- Errores de ejecución con contexto de llamadas e imports.
+- API de intérprete con entrada/salida inyectables y límite opcional de pasos.
+- CLI para ejecutar archivos, leer stdin, REPL, comprobar sintaxis y mostrar tokens o AST.
 
-### Funciones Builtin
-- ✅ `print(valor)` - Imprimir en consola
-- ✅ `input(prompt)` - Leer entrada del usuario
-- ✅ `len(objeto)` - Longitud de lista/string
-- ✅ `type(valor)` - Tipo de dato
-- ✅ `str(valor)` - Convertir a string
-- ✅ `int(valor)` - Convertir a entero
-- ✅ `float(valor)` - Convertir a decimal
-- ✅ `range(start, stop, step)` - Generar rango de números
+## Módulos
 
-### Sistema de Módulos
-- ✅ `import modulo` - Importar módulo completo
-- ✅ `import modulo as alias` - Importar con alias
-- ✅ `from modulo import item1, item2` - Importar específicos
-- ✅ Búsqueda en directorio actual y stdlib
+Incluye 17 módulos nativos: `math`, `random`, `http`, `filesystem`, `json`, `crypto`, `regex`, `strings`, `time`, `database`, `email`, `console`, `env`, `web`, `discord_bot`, `telegram_bot` y `whatsapp`. Las integraciones de Flask, Discord, Telegram, Twilio y AES-GCM usan extras opcionales. La referencia describe las funciones y sus requisitos.
 
-### Librería Estándar
-- ✅ `math` - Funciones matemáticas (abs, max, min, pow, sqrt, pi, e)
-- ✅ `http` - Peticiones HTTP (get, post)
-- ✅ `web` - Aplicaciones web con Flask
-- ✅ `discord_bot` - Bots de Discord
-- ✅ `telegram_bot` - Bots de Telegram
+## Herramientas
 
-### Herramientas
-- ✅ CLI: `mux archivo.mux`
-- ✅ Gestor de paquetes: `mux-pkg`
-- ✅ Compilación a .exe con PyInstaller
-- ✅ Mensajes de error comprensibles en español
+- `mux-pkg` instala paquetes Mux locales o ZIP remotos con HTTPS y SHA-256.
+- `build_exe.py` empaqueta la plataforma actual con PyInstaller.
+- `build_installer.py` genera el instalador Windows con Inno Setup.
+- `create_portable_installer.py` crea un ZIP reproducible para la plataforma actual.
 
-## Características Planificadas 🚧
+## Áreas de desarrollo futuro
 
-### Próxima Versión (1.1.0)
-- [ ] REPL interactivo
-- [ ] Manejo de archivos (open, read, write, close)
-- [ ] Try/catch para manejo de errores
-- [ ] Clases y objetos
-- [ ] Comprensión de listas: `[x*2 for x in lista]`
-- [ ] Operador ternario: `valor if condicion else otro`
-- [ ] Múltiples asignaciones: `a, b = 1, 2`
-
-### Versión 1.2.0
-- [ ] Decoradores para funciones
-- [ ] Generadores con `yield`
-- [ ] Async/await para operaciones asíncronas
-- [ ] Context managers (with statement)
-- [ ] Módulos de sistema (os, sys, path)
-
-### Versión 2.0.0
-- [ ] Compilación a bytecode propio
-- [ ] Optimizador de código
-- [ ] Depurador integrado
-- [ ] Profiler de rendimiento
-- [ ] Sistema de tipos opcional
-
-### Ecosistema
-- [ ] Repositorio de paquetes online
-- [ ] Documentación interactiva
-- [ ] Playground web
-- [ ] Extensión para VS Code
-- [ ] Syntax highlighting para editores
-
-## Comparación con Otros Lenguajes
-
-| Característica | Mux | Python | JavaScript | Lua |
-|---------------|-----|--------|------------|-----|
-| Sintaxis limpia | ✅ | ✅ | ⚠️ | ✅ |
-| Fácil de aprender | ✅ | ✅ | ⚠️ | ✅ |
-| Mensajes de error claros | ✅ | ✅ | ❌ | ⚠️ |
-| Compilable a .exe | ✅ | ✅ | ❌ | ⚠️ |
-| Bots integrados | ✅ | ⚠️ | ⚠️ | ❌ |
-| Web framework | ✅ | ✅ | ✅ | ⚠️ |
-| Velocidad | ⚠️ | ⚠️ | ✅ | ✅ |
-
-## Casos de Uso
-
-### Educación
-Perfecto para enseñar programación a principiantes gracias a su sintaxis clara y mensajes de error comprensibles.
-
-### Automatización
-Ideal para scripts de automatización de tareas, procesamiento de archivos, y tareas repetitivas.
-
-### Bots
-Crear bots de Discord, Telegram, WhatsApp con sintaxis simple y directa.
-
-### Desarrollo Web
-Aplicaciones web pequeñas y medianas con el módulo `web`.
-
-### Prototipado Rápido
-Probar ideas rápidamente sin configuración compleja.
-
-### Sistemas Embebidos
-Ligero y fácil de integrar en sistemas con recursos limitados.
-
----
-
-**Creado por MushhX** 🌍⚙️
+- Clases y excepciones del lenguaje.
+- Módulos `os`/`sys` con permisos y límites definidos.
+- Depurador y profiler.
+- Índice remoto de paquetes firmado.
+- Formateador, linter y soporte de editor.
+- Cobertura de pruebas automatizadas y compatibilidad continua entre plataformas.

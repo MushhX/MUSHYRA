@@ -1,33 +1,21 @@
-# Ejemplo de Envío de Emails
-# Creador: MushhX
+# Para enviar, define MUX_SEND_SAMPLE_EMAIL=true y MUX_SMTP_* / MUX_EMAIL_TO.
 
 import email
+import env
 
-print("=== Sistema de Envío de Emails ===")
-print("")
-
-# Configurar servidor SMTP
-configure_smtp("smtp.gmail.com", 587, "usuario@gmail.com", "password")
-
-# Enviar email simple
-print("Enviando email simple...")
-send("destinatario@example.com", "Hola desde Mux", "Este es un mensaje de prueba")
-
-# Enviar email HTML
-print("")
-print("Enviando email HTML...")
-let html = "<h1>Hola desde Mux</h1><p>Este es un email HTML</p>"
-send_html("destinatario@example.com", "Email HTML", html)
-
-# Enviar con adjunto
-print("")
-print("Enviando email con adjunto...")
-send_with_attachment(
-    "destinatario@example.com",
-    "Documento adjunto",
-    "Te envío el documento solicitado",
-    "documento.pdf"
-)
-
-print("")
-print("✅ Emails enviados correctamente")
+if env.get("MUX_SEND_SAMPLE_EMAIL") == "true"
+    email.configure_smtp(
+        env.require("MUX_SMTP_HOST"),
+        int(env.require("MUX_SMTP_PORT")),
+        env.require("MUX_SMTP_USER"),
+        env.require("MUX_SMTP_PASSWORD")
+    )
+    email.send(
+        env.require("MUX_EMAIL_TO"),
+        "Hola desde Mux",
+        "Este mensaje de muestra fue enviado desde Mux"
+    )
+    print("Mensaje aceptado por el servidor SMTP")
+else
+    print("Define MUX_SEND_SAMPLE_EMAIL=true y las variables MUX_SMTP_* para enviar un mensaje")
+end
