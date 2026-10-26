@@ -8,26 +8,130 @@ locations consistently.
 import base64
 import binascii
 import hashlib
+import hmac
+import ipaddress
 import json
 import math
 import os
 import random
 import re
+import secrets
 import smtplib
+import socket
 import sqlite3
 import ssl
 import time
+import tempfile
+import threading
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Any, Callable, Dict
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.parse import urljoin, urlparse
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 MAX_HTTP_RESPONSE_BYTES = 10 * 1024 * 1024
+MAX_NATIVE_FILE_BYTES = 50 * 1024 * 1024
+MAX_JSON_BYTES = 10 * 1024 * 1024
+MAX_REGEX_PATTERN_CHARS = 512
+MAX_REGEX_INPUT_CHARS = 64 * 1024
+MAX_REGEX_RESULTS = 100_000
+MAX_REGEX_OUTPUT_CHARS = 10 * 1024 * 1024
+MAX_EMAIL_ATTACHMENT_BYTES = 10 * 1024 * 1024
+MAX_DIRECTORY_ENTRIES = 100_000
+
+
+def _read_text_bounded(path, encoding="utf-8", limit=MAX_NATIVE_FILE_BYTES):
+    if path.stat().st_size > limit:
+        raise _error(f"El archivo supera el límite de {limit // (1024 * 1024)} MiB")
+    payload = path.read_bytes()
+    if len(payload) > limit:
+        raise _error(f"El archivo supera el límite de {limit // (1024 * 1024)} MiB")
+    try:
+        return payload.decode(encoding)
+    except (LookupError, UnicodeDecodeError) as exc:
+        raise _error(f"No se pudo decodificar el archivo: {exc}") from exc
+
+
+def _atomic_write_text(path, content, encoding="utf-8"):
+    encoded = content.encode(encoding)
+    if len(encoded) > MAX_NATIVE_FILE_BYTES:
+        raise _error("La escritura supera el límite de 50 MiB")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_name, path)
+    finally:
+        try:
+            os.unlink(temporary_name)
+        except FileNotFoundError:
+            pass
+
+
+def _strict_json_loads(text):
+    def reject_constant(value):
+        raise ValueError(f"Constante JSON no estándar: {value}")
+
+    def reject_duplicate_keys(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"Clave JSON duplicada: {key!r}")
+            result[key] = value
+        return result
+
+    try:
+        return json.loads(text, parse_constant=reject_constant, object_pairs_hook=reject_duplicate_keys)
+    except RecursionError as exc:
+        raise ValueError("El JSON supera el límite de anidamiento") from exc
+
+
+def _validate_http_url(url, allow_private=False):
+    parsed = urlparse(str(url))
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        raise _error("HTTP solo admite URL http(s) absolutas")
+    if parsed.username is not None or parsed.password is not None:
+        raise _error("No incluyas credenciales dentro de la URL HTTP")
+    if allow_private:
+        return parsed
+    try:
+        addresses = {item[4][0] for item in socket.getaddrinfo(parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)}
+    except (OSError, ValueError) as exc:
+        raise _error("No se pudo resolver el host HTTP") from exc
+    for address in addresses:
+        try:
+            ip = ipaddress.ip_address(address.split("%", 1)[0])
+        except ValueError as exc:
+            raise _error("El DNS devolvió una dirección IP no válida") from exc
+        if not ip.is_global:
+            raise _error("HTTP bloqueó una dirección privada, local o reservada; usa allow_private=true solo si confías en el destino")
+    return parsed
+
+
+class _SafeRedirectHandler(HTTPRedirectHandler):
+    def __init__(self, allow_private=False, max_redirects=5):
+        super().__init__()
+        self.allow_private = allow_private
+        self.max_redirects = max_redirects
+        self.redirect_count = 0
+
+    def redirect_request(self, request, file_pointer, code, message, headers, new_url):
+        self.redirect_count += 1
+        if self.redirect_count > self.max_redirects:
+            raise _error(f"HTTP superó el límite de {self.max_redirects} redirecciones")
+        target = urljoin(request.full_url, new_url)
+        old_scheme = urlparse(request.full_url).scheme.lower()
+        parsed = _validate_http_url(target, self.allow_private)
+        if old_scheme == "https" and parsed.scheme.lower() != "https":
+            raise _error("HTTP bloqueó una redirección de HTTPS a HTTP")
+        return super().redirect_request(request, file_pointer, code, message, headers, target)
 
 
 class NativeFunction:
@@ -59,6 +163,17 @@ def _wrap(name, function):
 
 def create_module(name: str, interpreter) -> Dict[str, Any]:
     """Return the public namespace for a built-in Mux module."""
+
+    handler_lock = threading.RLock()
+
+    def call_mux_handler(handler):
+        with handler_lock:
+            return interpreter.call_value(handler, [])
+
+    async def call_mux_handler_async(handler):
+        import asyncio
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, call_mux_handler, handler)
 
     if name == "math":
         def unary(name, fn):
@@ -185,36 +300,48 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
         }.items()}
 
     if name == "http":
-        def request(method, url, data=None, headers=None, timeout=10):
-            parsed = urlparse(str(url))
-            if parsed.scheme not in ("http", "https") or not parsed.netloc:
-                raise _error("HTTP solo admite URL http(s) absolutas")
+        def request(method, url, data=None, headers=None, timeout=10, allow_private=False):
+            _validate_http_url(url, allow_private)
             if headers is not None and not isinstance(headers, dict):
                 raise _error("headers debe ser un diccionario")
+            request_headers = {}
+            for header_name, header_value in (headers or {}).items():
+                header_name, header_value = str(header_name), str(header_value)
+                if not re.fullmatch(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+", header_name) or "\r" in header_value or "\n" in header_value:
+                    raise _error("Cabecera HTTP no válida")
+                request_headers[header_name] = header_value
             try:
                 timeout = float(timeout)
             except (TypeError, ValueError, OverflowError) as exc:
                 raise _error("timeout debe ser un número finito mayor que cero") from exc
-            if not math.isfinite(timeout) or timeout <= 0:
-                raise _error("timeout debe ser un número finito mayor que cero")
+            if not math.isfinite(timeout) or not 0 < timeout <= 300:
+                raise _error("timeout debe ser finito y estar entre 0 y 300 segundos")
             body = None
-            request_headers = dict(headers or {})
             if data is not None:
                 if isinstance(data, (dict, list)):
                     try:
                         body = json.dumps(data, allow_nan=False).encode("utf-8")
                     except (TypeError, ValueError) as exc:
                         raise _error(f"El cuerpo no se puede serializar como JSON: {exc}") from exc
+                    if len(body) > MAX_HTTP_RESPONSE_BYTES:
+                        raise _error("El cuerpo HTTP supera el límite de 10 MiB")
                     request_headers.setdefault("Content-Type", "application/json")
                 else:
                     body = str(data).encode("utf-8")
+                    if len(body) > MAX_HTTP_RESPONSE_BYTES:
+                        raise _error("El cuerpo HTTP supera el límite de 10 MiB")
             req = Request(str(url), data=body, headers=request_headers, method=method)
             try:
-                with urlopen(req, timeout=timeout) as response:
+                opener = build_opener(_SafeRedirectHandler(allow_private))
+                with opener.open(req, timeout=timeout) as response:
                     raw = response.read(MAX_HTTP_RESPONSE_BYTES + 1)
                     if len(raw) > MAX_HTTP_RESPONSE_BYTES:
                         raise _error("La respuesta HTTP supera el límite de 10 MiB")
-                    text = raw.decode("utf-8", errors="replace")
+                    charset = response.headers.get_content_charset() or "utf-8"
+                    try:
+                        text = raw.decode(charset, errors="replace")
+                    except LookupError:
+                        text = raw.decode("utf-8", errors="replace")
                     try:
                         payload = json.loads(text)
                     except json.JSONDecodeError:
@@ -225,7 +352,11 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 raw = exc.read(MAX_HTTP_RESPONSE_BYTES + 1)
                 if len(raw) > MAX_HTTP_RESPONSE_BYTES:
                     raise _error("La respuesta HTTP supera el límite de 10 MiB")
-                text = raw.decode("utf-8", errors="replace")
+                charset = exc.headers.get_content_charset() or "utf-8"
+                try:
+                    text = raw.decode(charset, errors="replace")
+                except LookupError:
+                    text = raw.decode("utf-8", errors="replace")
                 try:
                     payload = json.loads(text)
                 except json.JSONDecodeError:
@@ -237,27 +368,32 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 raise _error(f"HTTP {method} no completada ({detail})") from exc
 
         def get(_vm, *args):
-            _arity("get", args, 1, 3)
+            _arity("get", args, 1, 4)
+            if len(args) == 4 and not isinstance(args[3], bool):
+                raise _error("allow_private debe ser boolean")
             return request("GET", args[0], headers=args[1] if len(args) > 1 else None,
-                           timeout=args[2] if len(args) > 2 else 10)
+                           timeout=args[2] if len(args) > 2 else 10,
+                           allow_private=args[3] if len(args) > 3 else False)
 
         def post(_vm, *args):
-            _arity("post", args, 2, 4)
+            _arity("post", args, 2, 5)
+            if len(args) == 5 and not isinstance(args[4], bool):
+                raise _error("allow_private debe ser boolean")
             return request("POST", args[0], args[1],
                            args[2] if len(args) > 2 else None,
-                           args[3] if len(args) > 3 else 10)
+                           args[3] if len(args) > 3 else 10,
+                           args[4] if len(args) > 4 else False)
 
         return {"get": _wrap("get", get), "post": _wrap("post", post)}
 
     if name == "filesystem":
         def path_for(vm, value):
-            path = Path(str(value)).expanduser()
-            return path if path.is_absolute() else Path(vm.current_dir) / path
+            return vm.resolve_path(value)
 
         def read(vm, *args):
             _arity("read", args, 1, 2)
             try:
-                return path_for(vm, args[0]).read_text(encoding=args[1] if len(args) > 1 else "utf-8")
+                return _read_text_bounded(path_for(vm, args[0]), args[1] if len(args) > 1 else "utf-8")
             except OSError as exc:
                 raise _error(f"No se pudo leer {args[0]!r}: {exc}") from exc
 
@@ -265,8 +401,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             _arity("write", args, 2, 3)
             try:
                 path = path_for(vm, args[0])
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(str(args[1]), encoding=args[2] if len(args) > 2 else "utf-8")
+                _atomic_write_text(path, str(args[1]), args[2] if len(args) > 2 else "utf-8")
                 return True
             except OSError as exc:
                 raise _error(f"No se pudo escribir {args[0]!r}: {exc}") from exc
@@ -275,9 +410,14 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             _arity("append", args, 2, 3)
             try:
                 path = path_for(vm, args[0])
+                encoding = args[2] if len(args) > 2 else "utf-8"
+                content = str(args[1])
+                current_size = path.stat().st_size if path.exists() else 0
+                if current_size + len(content.encode(encoding)) > MAX_NATIVE_FILE_BYTES:
+                    raise _error("La escritura supera el límite de 50 MiB")
                 path.parent.mkdir(parents=True, exist_ok=True)
-                with path.open("a", encoding=args[2] if len(args) > 2 else "utf-8") as stream:
-                    stream.write(str(args[1]))
+                with path.open("a", encoding=encoding) as stream:
+                    stream.write(content)
                 return True
             except OSError as exc:
                 raise _error(f"No se pudo añadir a {args[0]!r}: {exc}") from exc
@@ -297,7 +437,14 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
         def list_dir(vm, *args):
             _arity("list_dir", args, 1)
             try:
-                return sorted(child.name for child in path_for(vm, args[0]).iterdir())
+                entries = []
+                for child in path_for(vm, args[0]).iterdir():
+                    if len(entries) >= MAX_DIRECTORY_ENTRIES:
+                        raise _error(
+                            f"El directorio supera el límite de {MAX_DIRECTORY_ENTRIES} entradas"
+                        )
+                    entries.append(child.name)
+                return sorted(entries)
             except OSError as exc:
                 raise _error(f"No se pudo listar {args[0]!r}: {exc}") from exc
 
@@ -323,13 +470,14 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
         }.items()}
 
     if name == "json":
-        def reject_nonstandard_constant(value):
-            raise ValueError(f"Constante JSON no estándar: {value}")
-
         def parse(_vm, *args):
             _arity("parse", args, 1)
             try:
-                return json.loads(args[0], parse_constant=reject_nonstandard_constant)
+                raw = args[0]
+                size = len(raw.encode("utf-8")) if isinstance(raw, str) else len(raw)
+                if size > MAX_JSON_BYTES:
+                    raise ValueError("el documento supera el límite de 10 MiB")
+                return _strict_json_loads(raw)
             except (TypeError, ValueError) as exc:
                 raise _error(f"JSON no válido: {exc}") from exc
 
@@ -337,34 +485,29 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             _arity("stringify", args, 1)
             try:
                 return json.dumps(args[0], ensure_ascii=False, separators=(",", ":"), allow_nan=False)
-            except (TypeError, ValueError) as exc:
+            except (TypeError, ValueError, RecursionError) as exc:
                 raise _error(f"No se puede serializar JSON: {exc}") from exc
 
         def pretty(_vm, *args):
             _arity("pretty", args, 1)
             try:
                 return json.dumps(args[0], ensure_ascii=False, indent=2, allow_nan=False)
-            except (TypeError, ValueError) as exc:
+            except (TypeError, ValueError, RecursionError) as exc:
                 raise _error(f"No se puede serializar JSON: {exc}") from exc
 
         def load(vm, *args):
             _arity("load", args, 1)
-            path = Path(str(args[0])).expanduser()
-            if not path.is_absolute():
-                path = Path(vm.current_dir) / path
+            path = vm.resolve_path(args[0])
             try:
-                return parse(vm, path.read_text(encoding="utf-8"))
+                return parse(vm, _read_text_bounded(path, limit=MAX_JSON_BYTES))
             except OSError as exc:
                 raise _error(f"No se pudo leer JSON {args[0]!r}: {exc}") from exc
 
         def save(vm, *args):
             _arity("save", args, 2)
-            path = Path(str(args[0])).expanduser()
-            if not path.is_absolute():
-                path = Path(vm.current_dir) / path
+            path = vm.resolve_path(args[0])
             try:
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(pretty(vm, args[1]), encoding="utf-8")
+                _atomic_write_text(path, pretty(vm, args[1]))
             except OSError as exc:
                 raise _error(f"No se pudo guardar JSON {args[0]!r}: {exc}") from exc
             return True
@@ -395,6 +538,44 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
         def generate_uuid(_vm, *args):
             _arity("generate_uuid", args, 0)
             return str(uuid.uuid4())
+
+        def generate_token(_vm, *args):
+            _arity("generate_token", args, 0, 1)
+            length = args[0] if args else 32
+            if not isinstance(length, int) or isinstance(length, bool) or not 16 <= length <= 64:
+                raise _error("generate_token requiere un tamaño entre 16 y 64 bytes")
+            return secrets.token_urlsafe(length)
+
+        def password_hash(_vm, *args):
+            _arity("password_hash", args, 1)
+            password = str(args[0]).encode("utf-8")
+            if not password or len(password) > 4096:
+                raise _error("La contraseña debe tener entre 1 y 4096 bytes UTF-8")
+            salt = secrets.token_bytes(16)
+            try:
+                digest = hashlib.scrypt(password, salt=salt, n=16384, r=8, p=1, dklen=32)
+            except (AttributeError, ValueError, OSError) as exc:
+                raise _error(f"No se pudo derivar el hash scrypt: {exc}") from exc
+            encode_part = lambda value: base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+            return f"scrypt$1$16384$8$1${encode_part(salt)}${encode_part(digest)}"
+
+        def password_verify(_vm, *args):
+            _arity("password_verify", args, 2)
+            password, encoded = str(args[0]).encode("utf-8"), str(args[1])
+            if len(password) > 4096 or len(encoded) > 256:
+                return False
+            try:
+                algorithm, version, n, r, p, salt_text, digest_text = encoded.split("$")
+                if (algorithm, version, n, r, p) != ("scrypt", "1", "16384", "8", "1"):
+                    return False
+                decode_part = lambda value: base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+                salt, expected = decode_part(salt_text), decode_part(digest_text)
+                if len(salt) != 16 or len(expected) != 32:
+                    return False
+                actual = hashlib.scrypt(password, salt=salt, n=16384, r=8, p=1, dklen=32)
+                return hmac.compare_digest(actual, expected)
+            except (ValueError, TypeError, OSError, AttributeError):
+                return False
 
         def cipher_encrypt(_vm, *args):
             _arity("encrypt", args, 2)
@@ -427,31 +608,115 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 "encode_base64": _wrap("encode_base64", encode),
                 "decode_base64": _wrap("decode_base64", decode),
                 "generate_uuid": _wrap("generate_uuid", generate_uuid),
+                "generate_token": _wrap("generate_token", generate_token),
+                "password_hash": _wrap("password_hash", password_hash),
+                "password_verify": _wrap("password_verify", password_verify),
                 "encrypt": _wrap("encrypt", cipher_encrypt),
                 "decrypt": _wrap("decrypt", cipher_decrypt)}
 
     if name == "regex":
+        try:
+            import regex as regex_engine
+        except ImportError:
+            regex_engine = re
+
         def compile_pattern(pattern):
+            pattern = str(pattern)
+            if len(pattern) > MAX_REGEX_PATTERN_CHARS:
+                raise _error(f"El patrón supera el límite de {MAX_REGEX_PATTERN_CHARS} caracteres")
+            if regex_engine is re and (
+                re.search(r"\([^)]*[+*][^)]*\)[+*{]", pattern)
+                or re.search(r"\([^)]*\|[^)]*\)[+*{]", pattern)
+                or re.search(r"\\[1-9]", pattern)
+            ):
+                raise _error("El patrón contiene cuantificadores ambiguos; instala mux-lang[regex] para límites de tiempo")
             try:
-                return re.compile(str(pattern))
+                return regex_engine.compile(pattern)
             except re.error as exc:
                 raise _error(f"Expresión regular no válida: {exc}") from exc
 
+        def run_regex(pattern, operation):
+            compiled = compile_pattern(pattern)
+            try:
+                return operation(compiled, 0.1) if regex_engine is not re else operation(compiled, None)
+            except TimeoutError as exc:
+                raise _error("La expresión regular superó el límite de 100 ms") from exc
+
+        def regex_text(value):
+            text = str(value)
+            if len(text) > MAX_REGEX_INPUT_CHARS:
+                raise _error(f"El texto supera el límite de {MAX_REGEX_INPUT_CHARS} caracteres")
+            return text
+
         def match(_vm, *args):
             _arity("match", args, 2)
-            return compile_pattern(args[0]).search(str(args[1])) is not None
+            text = regex_text(args[1])
+            return run_regex(args[0], lambda pattern, timeout: pattern.search(text, **({"timeout": timeout} if timeout else {})) is not None)
 
         def find_all(_vm, *args):
             _arity("find_all", args, 2)
-            return compile_pattern(args[0]).findall(str(args[1]))
+            text = regex_text(args[1])
+            def collect(pattern, timeout):
+                results, output_size = [], 0
+                options = {"timeout": timeout} if timeout else {}
+                for match in pattern.finditer(text, **options):
+                    if len(results) >= MAX_REGEX_RESULTS:
+                        raise _error("La expresión regular produjo demasiados resultados")
+                    value = match.group(0) if pattern.groups == 0 else (
+                        match.group(1) if pattern.groups == 1 else match.groups()
+                    )
+                    output_size += sum(len(part) for part in value if isinstance(part, str)) if isinstance(value, tuple) else len(value or "")
+                    if output_size > MAX_REGEX_OUTPUT_CHARS:
+                        raise _error("La salida de la expresión regular supera 10 Mi caracteres")
+                    results.append(value)
+                return results
+            return run_regex(args[0], collect)
 
         def replace(_vm, *args):
             _arity("replace", args, 3)
-            return compile_pattern(args[0]).sub(str(args[1]), str(args[2]))
+            replacement, text = str(args[1]), regex_text(args[2])
+            def substitute(pattern, timeout):
+                parts, output_size, cursor = [], 0, 0
+                options = {"timeout": timeout} if timeout else {}
+                for match in pattern.finditer(text, **options):
+                    fragment = text[cursor:match.start()]
+                    expanded = match.expand(replacement)
+                    output_size += len(fragment) + len(expanded)
+                    if output_size > MAX_REGEX_OUTPUT_CHARS:
+                        raise _error("La salida de la expresión regular supera 10 Mi caracteres")
+                    parts.extend((fragment, expanded))
+                    cursor = match.end()
+                tail = text[cursor:]
+                output_size += len(tail)
+                if output_size > MAX_REGEX_OUTPUT_CHARS:
+                    raise _error("La salida de la expresión regular supera 10 Mi caracteres")
+                parts.append(tail)
+                return "".join(parts)
+            return run_regex(args[0], substitute)
 
         def split(_vm, *args):
             _arity("split", args, 2)
-            return compile_pattern(args[0]).split(str(args[1]))
+            text = regex_text(args[1])
+            def split_bounded(pattern, timeout):
+                results, cursor, previous_end, output_size = [], 0, -1, 0
+                options = {"timeout": timeout} if timeout else {}
+                for match in pattern.finditer(text, **options):
+                    if match.start() == match.end() == previous_end:
+                        continue
+                    values = [text[cursor:match.start()], *match.groups()]
+                    if len(results) + len(values) > MAX_REGEX_RESULTS:
+                        raise _error("La expresión regular produjo demasiados resultados")
+                    output_size += sum(len(value) for value in values if isinstance(value, str))
+                    if output_size > MAX_REGEX_OUTPUT_CHARS:
+                        raise _error("La salida de la expresión regular supera 10 Mi caracteres")
+                    results.extend(values)
+                    cursor, previous_end = match.end(), match.end()
+                tail = text[cursor:]
+                if len(results) >= MAX_REGEX_RESULTS or output_size + len(tail) > MAX_REGEX_OUTPUT_CHARS:
+                    raise _error("La salida de la expresión regular supera el límite configurado")
+                results.append(tail)
+                return results
+            return run_regex(args[0], split_bounded)
 
         def validate_email(_vm, *args):
             _arity("validate_email", args, 1)
@@ -471,8 +736,8 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             "match": match, "find_all": find_all, "replace": replace,
             "split": split, "validate_email": validate_email,
             "validate_url": validate_url, "validate_phone": validate_phone,
-            "extract_numbers": lambda _vm, text: re.findall(r"\d+", str(text)),
-            "extract_emails": lambda _vm, text: re.findall(r"[^\s@]+@[^\s@]+\.[^\s@]+", str(text)),
+            "extract_numbers": lambda _vm, text: re.findall(r"\d+", regex_text(text))[:MAX_REGEX_RESULTS],
+            "extract_emails": lambda _vm, text: re.findall(r"[^\s@]+@[^\s@]+\.[^\s@]+", regex_text(text))[:MAX_REGEX_RESULTS],
         }.items()}
 
     if name == "strings":
@@ -510,19 +775,31 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
         def sleep(_vm, *args):
             _arity("sleep", args, 1)
             seconds = float(args[0])
-            if not math.isfinite(seconds) or seconds < 0:
-                raise _error("sleep requiere segundos finitos y no negativos")
-            time.sleep(seconds)
+            if not math.isfinite(seconds) or not 0 <= seconds <= 300:
+                raise _error("sleep requiere segundos finitos entre 0 y 300")
+            _vm.sleep(seconds)
             return True
 
         def now(_vm, *args):
             _arity("now", args, 0)
             return int(time.time())
 
+        def now_utc(_vm, *args):
+            _arity("now_utc", args, 0)
+            return datetime.now(timezone.utc).isoformat()
+
         def format_date(_vm, *args):
             _arity("format_date", args, 1, 2)
             try:
                 return datetime.fromtimestamp(float(args[0])).strftime(args[1] if len(args) > 1 else "%Y-%m-%d %H:%M:%S")
+            except (TypeError, ValueError, OverflowError, OSError) as exc:
+                raise _error(f"Timestamp no válido: {exc}") from exc
+
+        def format_date_utc(_vm, *args):
+            _arity("format_date_utc", args, 1, 2)
+            try:
+                stamp = datetime.fromtimestamp(float(args[0]), timezone.utc)
+                return stamp.strftime(args[1] if len(args) > 1 else "%Y-%m-%d %H:%M:%S UTC")
             except (TypeError, ValueError, OverflowError, OSError) as exc:
                 raise _error(f"Timestamp no válido: {exc}") from exc
 
@@ -539,6 +816,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             return time.perf_counter() - start
 
         return {"now": _wrap("now", now), "timestamp": _wrap("timestamp", now),
+                "now_utc": _wrap("now_utc", now_utc), "format_date_utc": _wrap("format_date_utc", format_date_utc),
                 "sleep": _wrap("sleep", sleep), "format_date": _wrap("format_date", format_date),
                 "get_year": current_part("year"), "get_month": current_part("month"),
                 "get_day": current_part("day"), "get_hour": current_part("hour"),
@@ -546,7 +824,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 "measure_time": _wrap("measure_time", measure_time)}
 
     if name == "database":
-        state = {"connection": None}
+        state = {"connection": None, "manual_transaction": False}
 
         def connection():
             if state["connection"] is None:
@@ -588,21 +866,35 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             return f" WHERE {identifier(field)} {operator} ?", [value]
 
         def connect(vm, *args):
-            _arity("connect", args, 1)
-            path = Path(str(args[0])).expanduser()
-            if not path.is_absolute():
-                path = Path(vm.current_dir) / path
+            _arity("connect", args, 1, 2)
+            path = ":memory:" if str(args[0]) == ":memory:" else vm.resolve_path(args[0])
+            timeout = args[1] if len(args) > 1 else 5
+            if not isinstance(timeout, (int, float)) or isinstance(timeout, bool) or not math.isfinite(timeout) or not 0 <= timeout <= 60:
+                raise _error("El timeout de SQLite debe estar entre 0 y 60 segundos")
+            current = None
             try:
-                path.parent.mkdir(parents=True, exist_ok=True)
+                if path != ":memory:":
+                    path.parent.mkdir(parents=True, exist_ok=True)
                 previous = state["connection"]
-                state["connection"] = None
+                current = sqlite3.connect(str(path), timeout=float(timeout))
+                current.row_factory = sqlite3.Row
+                current.execute("PRAGMA foreign_keys = ON")
+                current.execute(f"PRAGMA busy_timeout = {int(float(timeout) * 1000)}")
+                if path != ":memory:":
+                    current.execute("PRAGMA journal_mode = WAL")
+                state["connection"] = current
+                state["manual_transaction"] = False
                 if previous is not None:
                     previous.close()
-                state["connection"] = sqlite3.connect(str(path))
-                state["connection"].row_factory = sqlite3.Row
-                return state["connection"]
+                return current
             except sqlite3.Error as exc:
+                if current is not None:
+                    current.close()
                 raise _error(f"No se pudo abrir la base de datos: {exc}") from exc
+
+        def finish_write():
+            if not state["manual_transaction"]:
+                connection().commit()
 
         def create_table(_vm, *args):
             _arity("create_table", args, 2)
@@ -616,7 +908,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 definitions.append(f"{col} {kind}")
             try:
                 connection().execute(f"CREATE TABLE IF NOT EXISTS {identifier(table)} ({', '.join(definitions)})")
-                connection().commit()
+                finish_write()
                 return True
             except sqlite3.Error as exc:
                 raise _error(f"No se pudo crear la tabla: {exc}") from exc
@@ -631,16 +923,20 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                      f"VALUES ({', '.join('?' for _ in columns)})")
             try:
                 cursor = connection().execute(query, [values[c] for c in columns])
-                connection().commit()
+                finish_write()
                 return cursor.lastrowid
             except sqlite3.Error as exc:
                 raise _error(f"No se pudo insertar: {exc}") from exc
 
         def select(_vm, *args):
-            _arity("select", args, 1, 2)
+            _arity("select", args, 1, 4)
             clause, params = where_clause(args[1] if len(args) > 1 else None)
+            limit = args[2] if len(args) > 2 else 10000
+            offset = args[3] if len(args) > 3 else 0
+            if any(not isinstance(value, int) or isinstance(value, bool) for value in (limit, offset)) or not 1 <= limit <= 10000 or offset < 0:
+                raise _error("select requiere limit entre 1 y 10000 y offset no negativo")
             try:
-                rows = connection().execute(f"SELECT * FROM {identifier(args[0])}{clause}", params)
+                rows = connection().execute(f"SELECT * FROM {identifier(args[0])}{clause} LIMIT ? OFFSET ?", params + [limit, offset])
                 return [dict(row) for row in rows.fetchall()]
             except sqlite3.Error as exc:
                 raise _error(f"No se pudo consultar: {exc}") from exc
@@ -656,7 +952,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             query = f"UPDATE {identifier(table)} SET " + ", ".join(f"{identifier(c)} = ?" for c in values) + clause
             try:
                 cursor = connection().execute(query, list(values.values()) + params)
-                connection().commit()
+                finish_write()
                 return cursor.rowcount
             except sqlite3.Error as exc:
                 raise _error(f"No se pudo actualizar: {exc}") from exc
@@ -668,7 +964,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 raise _error("delete requiere una condición para evitar borrar toda la tabla")
             try:
                 cursor = connection().execute(f"DELETE FROM {identifier(args[0])}{clause}", params)
-                connection().commit()
+                finish_write()
                 return cursor.rowcount
             except sqlite3.Error as exc:
                 raise _error(f"No se pudo eliminar: {exc}") from exc
@@ -678,11 +974,20 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             params = args[1] if len(args) > 1 else []
             if not isinstance(params, list):
                 raise _error("execute espera los parámetros como lista")
+            statement = str(args[0])
+            if interpreter.allowed_root is not None:
+                scrubbed = re.sub(r"'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"|--[^\r\n]*|/\*[\s\S]*?\*/", " ", statement)
+                if (re.search(r"\b(?:ATTACH|DETACH|PRAGMA)\b", scrubbed, re.IGNORECASE)
+                        or re.search(r"\bVACUUM\b[\s\S]*?\bINTO\b", scrubbed, re.IGNORECASE)):
+                    raise _error("execute bloqueó una instrucción SQLite que puede acceder fuera de sandbox_root")
             try:
-                cursor = connection().execute(str(args[0]), params)
-                connection().commit()
+                cursor = connection().execute(statement, params)
+                finish_write()
                 if cursor.description:
-                    return [dict(row) for row in cursor.fetchall()]
+                    rows = cursor.fetchmany(10001)
+                    if len(rows) > 10000:
+                        raise _error("execute no puede devolver más de 10000 filas; usa select con paginación")
+                    return [dict(row) for row in rows]
                 return cursor.rowcount
             except sqlite3.Error as exc:
                 raise _error(f"Consulta SQL no válida: {exc}") from exc
@@ -693,12 +998,54 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             if conn is not None:
                 conn.close()
             state["connection"] = None
+            state["manual_transaction"] = False
             return True
+
+        def begin(_vm, *args):
+            _arity("begin", args, 0)
+            if state["manual_transaction"]:
+                raise _error("Ya hay una transacción abierta")
+            try:
+                connection().execute("BEGIN")
+                state["manual_transaction"] = True
+                return True
+            except sqlite3.Error as exc:
+                raise _error(f"No se pudo iniciar la transacción: {exc}") from exc
+
+        def commit(_vm, *args):
+            _arity("commit", args, 0)
+            try:
+                connection().commit()
+                state["manual_transaction"] = False
+                return True
+            except sqlite3.Error as exc:
+                raise _error(f"No se pudo confirmar la transacción: {exc}") from exc
+
+        def rollback(_vm, *args):
+            _arity("rollback", args, 0)
+            try:
+                connection().rollback()
+                state["manual_transaction"] = False
+                return True
+            except sqlite3.Error as exc:
+                raise _error(f"No se pudo revertir la transacción: {exc}") from exc
+
+        def transaction(vm, *args):
+            _arity("transaction", args, 1)
+            begin(vm)
+            try:
+                result = vm.call_value(args[0], [])
+                commit(vm)
+                return result
+            except Exception:
+                rollback(vm)
+                raise
 
         return {key: _wrap(key, fn) for key, fn in {
             "connect": connect, "create_table": create_table, "insert": insert,
             "select": select, "update": update, "delete": delete,
-            "execute": execute, "close": close,
+            "execute": execute, "close": close, "begin": begin,
+            "commit": commit, "rollback": rollback, "transaction": transaction,
         }.items()}
 
     if name == "email":
@@ -720,7 +1067,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             config.update(host=host, port=port, username=str(args[2]), password=str(args[3]))
             return True
 
-        def send_mail(recipient, subject, body, html=None, attachment=None):
+        def send_mail(vm, recipient, subject, body, html=None, attachment=None):
             if not config["host"]:
                 raise _error("Configura SMTP antes de enviar correo")
             message = EmailMessage()
@@ -731,11 +1078,13 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             if html is not None:
                 message.add_alternative(str(html), subtype="html")
             if attachment:
-                path = Path(str(attachment)).expanduser()
-                if not path.is_absolute():
-                    path = Path(interpreter.current_dir) / path
+                path = vm.resolve_path(attachment)
                 try:
+                    if path.stat().st_size > MAX_EMAIL_ATTACHMENT_BYTES:
+                        raise _error("El adjunto supera el límite de 10 MiB")
                     payload = path.read_bytes()
+                    if len(payload) > MAX_EMAIL_ATTACHMENT_BYTES:
+                        raise _error("El adjunto supera el límite de 10 MiB")
                 except OSError as exc:
                     raise _error(f"No se pudo leer el adjunto: {exc}") from exc
                 message.add_attachment(payload, maintype="application", subtype="octet-stream", filename=path.name)
@@ -755,15 +1104,15 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
 
         def send(_vm, *args):
             _arity("send", args, 3)
-            return send_mail(*args)
+            return send_mail(_vm, *args)
 
         def send_html(_vm, *args):
             _arity("send_html", args, 3)
-            return send_mail(args[0], args[1], "Mensaje en formato HTML", html=args[2])
+            return send_mail(_vm, args[0], args[1], "Mensaje en formato HTML", html=args[2])
 
         def send_attachment(_vm, *args):
             _arity("send_with_attachment", args, 4)
-            return send_mail(args[0], args[1], args[2], attachment=args[3])
+            return send_mail(_vm, args[0], args[1], args[2], attachment=args[3])
 
         return {key: _wrap(key, fn) for key, fn in {
             "configure_smtp": configure, "send": send,
@@ -776,7 +1125,9 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
 
         def styled(text, code):
             value = str(text)
-            return f"\033[{code}m{value}\033[0m" if getattr(interpreter.output, "isatty", lambda: False)() else value
+            force = "FORCE_COLOR" in os.environ
+            enabled = "NO_COLOR" not in os.environ and (force or getattr(interpreter.output, "isatty", lambda: False)())
+            return f"\033[{code}m{value}\033[0m" if enabled else value
 
         def color(_vm, *args):
             _arity("color", args, 2)
@@ -879,7 +1230,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             _arity("iniciar", args, 2)
             if not isinstance(args[1], int) or isinstance(args[1], bool) or not 0 < args[1] < 65536:
                 raise _error("El puerto debe estar entre 1 y 65535")
-            args[0].run(host="127.0.0.1", port=args[1])
+            args[0].run(host="127.0.0.1", port=args[1], debug=False, use_reloader=False)
             return True
 
         return {"crear_app": _wrap("crear_app", create_app),
@@ -905,7 +1256,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             _arity("comando", args, 3)
             bot, name_value, handler = args
             async def callback(ctx):
-                response = interpreter.call_value(handler, [])
+                response = await call_mux_handler_async(handler)
                 if response is not None:
                     await ctx.send(str(response))
             bot.command(name=str(name_value))(callback)
@@ -950,7 +1301,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             application = bot["application_builder"].builder().token(token).build()
             for command_name, handler in bot["commands"]:
                 async def callback(update, context, mux_handler=handler):
-                    response = interpreter.call_value(mux_handler, [])
+                    response = await call_mux_handler_async(mux_handler)
                     if response is not None and update.message is not None:
                         await update.message.reply_text(str(response))
                 from telegram.ext import CommandHandler

@@ -15,10 +15,10 @@ El lenguaje todavía no incluye clases, excepciones propias, generadores, async/
 
 ## Intérprete y CLI
 
-- Lexer y parser recursivo con ubicaciones de origen.
-- Errores de ejecución con contexto de llamadas e imports.
-- API de intérprete con entrada/salida inyectables y límite opcional de pasos.
-- CLI para ejecutar archivos, leer stdin, REPL, comprobar sintaxis y mostrar tokens o AST.
+- Lexer y parser recursivo con spans por nodo, errores de ejecución contextualizados e imports con contexto.
+- API de intérprete con entrada/salida inyectables, presupuesto compartido de pasos, cancelación, límites de colecciones y profundidad de llamada.
+- CLI para ejecutar archivos `.mux`, leer stdin, REPL con historial, comprobar sintaxis, mostrar tokens/AST, lint, formato, watch, argumentos de programa y diagnósticos JSON.
+- Configuración JSON por usuario y opciones de sandbox de rutas.
 
 ## Módulos
 
@@ -26,16 +26,15 @@ Incluye 17 módulos nativos: `math`, `random`, `http`, `filesystem`, `json`, `cr
 
 ## Herramientas
 
-- `mux-pkg` instala paquetes Mux locales o ZIP remotos con HTTPS y SHA-256.
+- `mux-pkg` instala paquetes locales o remotos con HTTPS, SHA-256, firmas Ed25519, registro configurable, lockfiles e inspección de integridad.
 - `build_exe.py` empaqueta la plataforma actual con PyInstaller.
 - `build_installer.py` genera el instalador Windows con Inno Setup.
 - `create_portable_installer.py` crea un ZIP reproducible para la plataforma actual.
+- `benchmarks/sum_100k.mux` permite comparar tiempos con `mux --time`.
 
-## Áreas de desarrollo futuro
+## Límites actuales
 
-- Clases y excepciones del lenguaje.
-- Módulos `os`/`sys` con permisos y límites definidos.
-- Depurador y profiler.
-- Índice remoto de paquetes firmado.
-- Formateador, linter y soporte de editor.
-- Cobertura de pruebas automatizadas y compatibilidad continua entre plataformas.
+- Clases, excepciones del lenguaje, generadores, async/await, slicing y sistema de tipos estático.
+- Un registro público alojado y una clave de firma oficial requieren infraestructura y operación fuera del repositorio.
+- Un depurador interactivo, profiler dedicado y extensiones de editor aún no están incluidos.
+- `--sandbox-root` limita rutas de archivos; no aísla código hostil ni limita la red o extensiones nativas.

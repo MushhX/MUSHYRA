@@ -1,3 +1,0 @@
-[console_scripts]
-mux = mux_lang.cli:main
-mux-pkg = mux_lang.package_manager:main

@@ -1,0 +1,36 @@
+{
+  "name": "mux-language-support",
+  "displayName": "Mux Language Support",
+  "description": "Syntax highlighting, brackets and snippets for Mux programs",
+  "version": "1.2.0",
+  "publisher": "mushhx",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "mux",
+        "aliases": ["Mux", "mux"],
+        "extensions": [".mux"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "mux",
+        "scopeName": "source.mux",
+        "path": "./syntaxes/mux.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "mux",
+        "path": "./snippets/mux.code-snippets"
+      }
+    ]
+  }
+}

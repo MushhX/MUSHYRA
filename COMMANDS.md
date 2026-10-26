@@ -6,7 +6,6 @@
 python -m pip install .
 mux --version
 mux examples/hola_mundo.mux
-python -m mux_lang.cli examples/hola_mundo.mux
 ```
 
 ## CLI
@@ -14,9 +13,16 @@ python -m mux_lang.cli examples/hola_mundo.mux
 ```console
 mux --help
 mux --check programa.mux
+mux --lint programa.mux
+mux --diagnostics-format json programa.mux
+mux --format programa.mux
+mux --write-format programa.mux
+mux --watch programa.mux
 mux --tokens programa.mux
 mux --ast programa.mux
 mux --max-steps 10000 programa.mux
+mux --max-call-depth 96 programa.mux
+mux programa.mux -- valor
 mux --debug programa.mux
 mux --repl
 mux -
@@ -32,10 +38,18 @@ mux-pkg list --json
 mux-pkg install ./paquete --name saludos
 mux-pkg install ./main.mux --name saludos
 mux-pkg install https://example.org/saludos.zip --name saludos --sha256 HASH
+mux-pkg search saludo --registry https://example.org/index.json --trust-store claves.json
+mux-pkg install saludos --from-registry --registry https://example.org/index.json --trust-store claves.json
+mux-pkg lock
+mux-pkg install-lock
+mux-pkg verify
+mux-pkg audit
+mux-pkg outdated --registry https://example.org/index.json --trust-store claves.json
+mux-pkg hashes ./saludos
 mux-pkg remove saludos
 ```
 
-El origen HTTPS debe ser un ZIP y requiere su hash SHA-256. No se consulta un catálogo remoto.
+Las descargas HTTPS requieren hash SHA-256; las instalaciones remotas normales también requieren firma Ed25519 y una clave pública confiable. El registro se configura con `MUX_PACKAGE_REGISTRY` o `--registry`; el proyecto no mantiene un servicio público.
 
 ## Extras opcionales
 

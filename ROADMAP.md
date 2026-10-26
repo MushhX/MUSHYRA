@@ -1,27 +1,25 @@
-# Plan de desarrollo
+# Hoja de ruta
 
-La versión declarada en el paquete es 1.1.0. Este archivo describe trabajo posible, no fechas ni compromisos de publicación.
+La versión de desarrollo pasa a 1.2.0. Esta lista separa las capacidades incorporadas de las siguientes decisiones de producto; no promete fechas.
 
-## Lenguaje
+## Incorporado en esta iteración
 
-- Diseñar clases y excepciones propias antes de añadirlas a la gramática.
-- Definir slicing, valores por defecto y semántica de tipos de forma coherente.
-- Añadir mejor soporte para Unicode y mensajes de error recuperables en el REPL.
+- AST compatible con tuplas y spans de origen; errores recuperables en el REPL.
+- Límites de pasos, profundidad, colecciones, archivos, JSON, HTTP, regex y resultados SQLite.
+- CLI con configuración, `--check`, `--lint`, `--format`, `--watch`, argumentos de script y diagnósticos JSON.
+- Referencia EBNF, seguridad, configuración, benchmark y documentación de módulos.
+- Suite automatizada, fuzzing basado en propiedades y CI multiplataforma con compilación de paquetes.
+- Gestor con SemVer, hashes por archivo, firmas Ed25519, índice configurable, lockfiles, empaquetado e inspección de integridad.
+- Guía de sintaxis y snippets para VS Code.
 
-## Calidad y herramientas
+## Siguientes áreas
 
-- Crear una suite de pruebas automatizadas para lexer, parser, intérprete, módulos, gestor y empaquetado.
-- Incorporar lint, formato y comprobaciones multiplataforma en CI.
-- Añadir depurador paso a paso y perfilado con líneas de origen.
-- Documentar versiones soportadas de Python y dependencias opcionales.
+- Decidir semántica y compatibilidad de clases, excepciones propias, slicing y valores por defecto.
+- Añadir un depurador paso a paso y un perfilador con spans de origen.
+- Publicar un índice operado por el proyecto y gestionar su raíz de confianza y rotación de claves.
+- Ampliar telemetría opt-in y documentación de rendimiento sin recopilar datos por defecto.
+- Evaluar otros editores después de estabilizar la gramática y las contribuciones de la extensión VS Code.
 
-## Paquetes y distribución
+## Compatibilidad
 
-- Diseñar un índice remoto firmado y versionado antes de habilitar un catálogo.
-- Definir resolución de dependencias, bloqueo de versiones y desinstalación segura.
-- Publicar y verificar artefactos de Windows, macOS y Linux con hashes y procedencia.
-
-## Editor
-
-- Preparar resaltado, snippets y diagnóstico para editores comunes.
-- Valorar formateador y linter después de estabilizar la gramática.
+La CI cubre Python 3.8, 3.10, 3.12 y 3.14 en Linux, además de Python 3.12 en Windows y macOS. Los extras de integraciones externas se mantienen opcionales.

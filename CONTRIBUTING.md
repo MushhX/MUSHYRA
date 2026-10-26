@@ -28,7 +28,8 @@ mux examples/hola_mundo.mux
 2. Crea una rama descriptiva.
 3. Mantén los cambios enfocados y añade ejemplos cuando cambie el lenguaje.
 4. Actualiza la documentación afectada.
-5. Antes de proponer el cambio, valida manualmente los ejemplos y flujos relacionados y describe qué comandos ejecutaste.
+5. Añade cobertura para cambios de lexer, parser, runtime, CLI o paquetes.
+6. Antes de proponer el cambio, ejecuta la suite y los flujos afectados; describe los comandos y plataformas comprobados.
 
 ## Guías de implementación
 
@@ -41,3 +42,5 @@ mux examples/hola_mundo.mux
 ## Pull requests
 
 Incluye el objetivo, los cambios de comportamiento, comandos de validación ejecutados y cualquier limitación pendiente. Evita adjuntar secretos, bases de datos locales, cachés o ejecutables generados.
+
+La CI ejecuta la suite en Linux, Windows y macOS y compila los artefactos fuente y wheel. Los cambios que necesiten secretos, una clave de publicación o un servicio externo deben describir esa dependencia sin añadir credenciales al repositorio.

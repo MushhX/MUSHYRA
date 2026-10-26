@@ -66,6 +66,8 @@ Consulta [STDLIB_REFERENCE.md](STDLIB_REFERENCE.md) para los módulos, funciones
 mux --check hola.mux
 mux --tokens hola.mux
 mux --ast hola.mux
+mux --lint hola.mux
+mux --format hola.mux
 mux --max-steps 10000 hola.mux
 mux --repl
 ```
@@ -74,7 +76,7 @@ Para leer el programa desde la entrada estándar, usa `mux -`.
 
 ## Paquetes Mux
 
-El gestor instala paquetes locales o archivos ZIP HTTPS verificados:
+El gestor instala paquetes locales o paquetes de un índice que tú configures:
 
 ```console
 mux-pkg install ./saludos --name saludos
@@ -82,7 +84,7 @@ mux-pkg list
 mux-pkg remove saludos
 ```
 
-Las descargas HTTPS también requieren `--sha256 HASH` y `--name nombre`. No hay un registro remoto configurado. El manifiesto opcional se llama `mux-package.json`; su propiedad `main` debe apuntar a un archivo `.mux` del paquete.
+Las descargas HTTPS requieren `--sha256 HASH` y, salvo que se pida expresamente `--allow-unsigned`, una firma Ed25519 de una clave confiable. Puedes configurar `MUX_PACKAGE_REGISTRY` para buscar e instalar desde un índice firmado. Consulta [PACKAGE_REGISTRY.md](PACKAGE_REGISTRY.md). El manifiesto opcional se llama `mux-package.json`; su propiedad `main` debe apuntar a un archivo `.mux` del paquete.
 
 ## Compilar
 

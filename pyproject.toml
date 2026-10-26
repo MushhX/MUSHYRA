@@ -1,3 +1,71 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "mux-lang"
+dynamic = ["version"]
+description = "Intérprete y herramientas para el lenguaje Mux"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [{ name = "MushhX", email = "mushhdev@gmail.com" }]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+
+[project.urls]
+Homepage = "https://github.com/MushhX/Mux"
+Repository = "https://github.com/MushhX/Mux"
+Issues = "https://github.com/MushhX/Mux/issues"
+
+[project.scripts]
+mux = "mux_lang.cli:main"
+mux-pkg = "mux_lang.package_manager:main"
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10", "hypothesis>=6,<7"]
+web = ["flask>=2.3,<4"]
+discord = ["discord.py>=2.3,<3"]
+telegram = ["python-telegram-bot>=20,<23"]
+whatsapp = ["twilio>=8.10,<10"]
+crypto = ["cryptography>=41,<47"]
+regex = ["regex>=2023.0"]
+build = ["pyinstaller>=6,<7", "Pillow>=9,<13", "build>=1,<2"]
+full = [
+  "flask>=2.3,<4",
+  "discord.py>=2.3,<3",
+  "python-telegram-bot>=20,<23",
+  "twilio>=8.10,<10",
+  "cryptography>=41,<47",
+  "regex>=2023.0",
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "mux_lang._version.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["mux_lang*"]
+exclude = ["tests", "tests.*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.coverage.run]
+branch = true
+source = ["mux_lang"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

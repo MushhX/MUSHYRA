@@ -1,16 +1,18 @@
 """Lexer and source-aware errors for the Mux language."""
 
 import re
+import unicodedata
 from typing import List, Optional
 
 
 class Token(tuple):
     """A token retaining the legacy three-tuple API plus source coordinates."""
 
-    def __new__(cls, token_type, value, line, column=1, offset=0):
+    def __new__(cls, token_type, value, line, column=1, offset=0, end_offset=None):
         instance = super().__new__(cls, (token_type, value, line))
         instance.column = column
         instance.offset = offset
+        instance.end_offset = offset + len(value) if end_offset is None else end_offset
         return instance
 
     @property
@@ -31,12 +33,13 @@ class MuxError(Exception):
 
     def __init__(self, message: str, path: Optional[str] = None,
                  line: Optional[int] = None, column: Optional[int] = None,
-                 cause: Optional[BaseException] = None):
+                 cause: Optional[BaseException] = None, incomplete: bool = False):
         self.message = message
         self.path = path
         self.line = line
         self.column = column
         self.cause = cause
+        self.incomplete = incomplete
         self.contexts = []
         super().__init__(self.format())
 
@@ -68,15 +71,29 @@ class MuxError(Exception):
             result += "\n" + "\n".join(f"  en {item}" for item in reversed(self.contexts))
         return result
 
+    def to_dict(self) -> dict:
+        """Return stable machine-readable diagnostic data."""
+        return {
+            "message": self.message,
+            "path": self.path,
+            "line": self.line,
+            "column": self.column,
+            "incomplete": self.incomplete,
+            "contexts": list(self.contexts),
+        }
+
 
 class Lexer:
     """Tokenize Mux source while retaining exact source positions."""
+
+    MAX_SOURCE_CHARACTERS = 10 * 1024 * 1024
+    MAX_TOKENS = 1_000_000
 
     # A single compiled scanner avoids recompiling a large list of expressions
     # at every character. Keywords are ordered before identifiers and use word
     # boundaries, so e.g. `ifx` remains an identifier.
     TOKEN_PATTERNS = [
-        ("NUMBER", r"\d+(?:\.\d+)?(?![A-Za-z_\d.])"),
+        ("NUMBER", r"\d(?:_?\d)*(?:\.\d(?:_?\d)*)?(?:[eE][+-]?\d(?:_?\d)*)?(?![\w.])"),
         ("STRING", r'"(?:[^"\\\r\n]|\\(?:["\\bnrtf]|u[0-9a-fA-F]{4}))*"'),
         ("BOOL", r"\b(?:true|false)\b"),
         ("NULL", r"\bnull\b"),
@@ -155,6 +172,8 @@ class Lexer:
     def __init__(self, code: str, path: Optional[str] = None):
         self.code = code.replace("\r\n", "\n").replace("\r", "\n")
         self.path = path
+        if len(self.code) > self.MAX_SOURCE_CHARACTERS:
+            raise MuxError("El código supera el límite de 10 Mi caracteres", path)
 
     def tokenize(self) -> List[Token]:
         tokens = []
@@ -163,6 +182,10 @@ class Lexer:
             match = self.TOKEN_RE.match(self.code, pos)
             if match is None:
                 char = self.code[pos]
+                if char.isdigit():
+                    invalid_number = re.match(r"\d[\w.]*", self.code[pos:])
+                    if invalid_number:
+                        raise MuxError("Literal numérico no válido", self.path, line, column)
                 if char == '"':
                     line_end = self.code.find("\n", pos)
                     if line_end < 0:
@@ -175,9 +198,13 @@ class Lexer:
                 )
             token_type = match.lastgroup
             value = match.group(token_type)
+            if token_type == "ID":
+                value = unicodedata.normalize("NFC", value)
             start_line, start_column = line, column
             if token_type not in ("SKIP", "COMMENT"):
-                tokens.append(Token(token_type, value, start_line, start_column, pos))
+                if len(tokens) >= self.MAX_TOKENS:
+                    raise MuxError(f"El archivo supera el límite de {self.MAX_TOKENS} tokens", self.path, line, column)
+                tokens.append(Token(token_type, value, start_line, start_column, pos, match.end()))
             consumed = self.code[pos:match.end()]
             if token_type == "NEWLINE":
                 line += 1

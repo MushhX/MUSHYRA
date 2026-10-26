@@ -10,6 +10,22 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .lexer import Lexer, MuxError
 from .parser import Parser
+from .ast_nodes import ASTNode
+
+
+MAX_COLLECTION_ITEMS = 1_000_000
+MAX_STRING_CHARACTERS = 10_000_000
+MAX_INTEGER_BITS = 1_000_000
+MAX_MODULE_SOURCE_BYTES = 10 * 1024 * 1024
+MAX_WAIT_SECONDS = 300
+DEFAULT_MAX_CALL_DEPTH = 128
+MAX_CALL_DEPTH = 128
+
+
+@dataclass
+class ExecutionBudget:
+    max_steps: Optional[int]
+    steps: int = 0
 
 
 class BreakException(Exception):
@@ -41,6 +57,9 @@ class FunctionValue:
     body: List[Any]
     closure: Tuple[Dict[str, Any], ...]
     globals: Dict[str, Any]
+    source_map: Optional[Dict[int, Any]] = None
+    filename: str = "<stdin>"
+    current_dir: str = "."
 
     def __repr__(self):
         return f"<Mux function {self.name}>"
@@ -52,7 +71,9 @@ class Interpreter:
     DICT_METHODS = frozenset({"get", "keys", "values", "items", "update"})
 
     def __init__(self, output=None, input_fn=None, max_steps: Optional[int] = None,
-                 source_map=None, module_cache=None):
+                 source_map=None, module_cache=None, budget=None,
+                 max_call_depth: int = DEFAULT_MAX_CALL_DEPTH,
+                 cancel_event=None, allowed_root=None, call_stack=None):
         self.globals: Dict[str, Any] = {}
         self.environments: List[Tuple[Dict[str, Any], ...]] = []
         self.declarations: List[Tuple[set, set]] = []
@@ -65,16 +86,24 @@ class Interpreter:
         if (max_steps is not None and
                 (not isinstance(max_steps, int) or isinstance(max_steps, bool) or max_steps < 1)):
             raise ValueError("max_steps debe ser un entero positivo o None")
-        self.max_steps = max_steps
-        self.steps = 0
+        if (not isinstance(max_call_depth, int) or isinstance(max_call_depth, bool)
+                or not 1 <= max_call_depth <= MAX_CALL_DEPTH):
+            raise ValueError(f"max_call_depth debe estar entre 1 y {MAX_CALL_DEPTH}")
+        self.budget = budget if budget is not None else ExecutionBudget(max_steps)
+        self._owns_budget = budget is None
+        self.max_steps = self.budget.max_steps
+        self.max_call_depth = max_call_depth
+        self.cancel_event = cancel_event
+        self.allowed_root = Path(allowed_root).expanduser().resolve() if allowed_root else None
         self.source_map = source_map or {}
         self.current_location = None
-        self.call_stack = []
+        self.call_stack = call_stack if call_stack is not None else []
 
     def run(self, ast: List[Any], filename: str = "<stdin>"):
         self.filename = filename
         self.current_dir = os.path.dirname(os.path.abspath(filename)) if filename != "<stdin>" else os.getcwd()
-        self.steps = 0
+        if self._owns_budget:
+            self.budget.steps = 0
         try:
             for statement in ast:
                 self.eval_statement(statement)
@@ -99,9 +128,40 @@ class Interpreter:
         )
 
     def _tick(self):
-        self.steps += 1
-        if self.max_steps is not None and self.steps > self.max_steps:
+        self.budget.steps += 1
+        if self.cancel_event is not None and self.cancel_event.is_set():
+            raise self._located_error("Ejecución cancelada")
+        if self.max_steps is not None and self.budget.steps > self.max_steps:
             raise self._located_error(f"Se alcanzó el límite de {self.max_steps} pasos de ejecución")
+
+    @property
+    def steps(self):
+        return self.budget.steps
+
+    def resolve_path(self, value):
+        try:
+            path = Path(str(value)).expanduser()
+            if not path.is_absolute():
+                path = Path(self.current_dir) / path
+            resolved = path.resolve()
+        except (OSError, RuntimeError, ValueError) as exc:
+            raise MuxError(f"No se pudo resolver la ruta {str(value)!r}: {exc}") from exc
+        if self.allowed_root is not None:
+            try:
+                resolved.relative_to(self.allowed_root)
+            except ValueError as exc:
+                raise MuxError(f"La ruta {str(value)!r} queda fuera del directorio permitido") from exc
+        return resolved
+
+    def sleep(self, seconds):
+        deadline = time.monotonic() + seconds
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return
+            if self.cancel_event is not None and self.cancel_event.is_set():
+                raise self._located_error("Ejecución cancelada durante la espera")
+            time.sleep(min(remaining, 0.1))
 
     def eval_statement(self, stmt):
         if not stmt:
@@ -123,6 +183,12 @@ class Interpreter:
             raise
         except (TypeError, ValueError, IndexError, KeyError, ZeroDivisionError, OverflowError) as exc:
             error = self._located_error(f"Error de ejecución: {exc}", exc)
+            if self.call_stack:
+                name, path, line = self.call_stack[-1]
+                error.add_context(f"función {name} ({path}:{line})")
+            raise error from exc
+        except RecursionError as exc:
+            error = self._located_error("Se superó el límite seguro de profundidad de evaluación", exc)
             if self.call_stack:
                 name, path, line = self.call_stack[-1]
                 error.add_context(f"función {name} ({path}:{line})")
@@ -223,7 +289,10 @@ class Interpreter:
             _, name, params, body = stmt
             closure = self.environments[-1] if self.environments else ()
             global_scope = self.global_scope_stack[-1] if self.global_scope_stack else self.globals
-            self.set_var(name, FunctionValue(name, params, body, tuple(closure), global_scope))
+            self.set_var(name, FunctionValue(
+                name, params, body, tuple(closure), global_scope,
+                self.source_map, self.filename, self.current_dir,
+            ))
         elif kind in ("global", "nonlocal"):
             if not self.declarations:
                 raise MuxError(f"{kind} solo puede usarse dentro de una función")
@@ -251,10 +320,11 @@ class Interpreter:
             return self.call_builtin("ask", [stmt[1]])
         elif kind == "wait":
             seconds = self.eval_expression(stmt[1])
-            if not isinstance(seconds, (int, float)) or isinstance(seconds, bool) or not math.isfinite(seconds) or seconds < 0:
-                raise MuxError("wait requiere segundos finitos y no negativos")
+            if (not isinstance(seconds, (int, float)) or isinstance(seconds, bool)
+                    or not math.isfinite(seconds) or not 0 <= seconds <= MAX_WAIT_SECONDS):
+                raise MuxError(f"wait requiere segundos finitos entre 0 y {MAX_WAIT_SECONDS}")
             print(f"⏳ Esperando {seconds} segundos...", file=self.output)
-            time.sleep(seconds)
+            self.sleep(seconds)
         elif kind == "exit":
             code = self.eval_expression(stmt[1]) if stmt[1] is not None else 0
             if not isinstance(code, int) or isinstance(code, bool) or not 0 <= code <= 255:
@@ -300,6 +370,18 @@ class Interpreter:
     def eval_expression(self, expr):
         if expr is None:
             return None
+        self._tick()
+        prior_location = self.current_location
+        if isinstance(expr, ASTNode) and expr.span is not None:
+            self.current_location = expr.span
+        try:
+            return self._eval_expression(expr)
+        finally:
+            self.current_location = prior_location
+
+    def _eval_expression(self, expr):
+        if expr is None:
+            return None
         kind = expr[0]
         try:
             if kind in ("number", "string", "bool", "null"):
@@ -307,8 +389,12 @@ class Interpreter:
             if kind == "var":
                 return self.get_var(expr[1])
             if kind == "list":
+                if len(expr[1]) > MAX_COLLECTION_ITEMS:
+                    raise MuxError(f"Una lista no puede superar {MAX_COLLECTION_ITEMS} elementos")
                 return [self.eval_expression(item) for item in expr[1]]
             if kind == "dict":
+                if len(expr[1]) > MAX_COLLECTION_ITEMS:
+                    raise MuxError(f"Un diccionario no puede superar {MAX_COLLECTION_ITEMS} elementos")
                 result = {}
                 for key_expr, value_expr in expr[1]:
                     key = self.eval_expression(key_expr)
@@ -365,20 +451,21 @@ class Interpreter:
                 if op == "OR":
                     return bool(left) or bool(self.eval_expression(right_expr))
                 right = self.eval_expression(right_expr)
+                self._guard_binary_size(op, left, right)
                 if op == "PLUS":
-                    return left + right
+                    return self._guard_value(left + right)
                 if op == "MINUS":
-                    return left - right
+                    return self._guard_value(left - right)
                 if op == "MULT":
-                    return left * right
+                    return self._guard_value(left * right)
                 if op == "DIV":
                     if right == 0:
                         raise MuxError("División por cero")
-                    return left / right
+                    return self._guard_value(left / right)
                 if op == "MOD":
                     if right == 0:
                         raise MuxError("Módulo por cero")
-                    return left % right
+                    return self._guard_value(left % right)
                 if op == "EQ":
                     return self._strict_equal(left, right)
                 if op == "NEQ":
@@ -406,6 +493,30 @@ class Interpreter:
     @staticmethod
     def _is_number(value):
         return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+    @staticmethod
+    def _guard_value(value):
+        if isinstance(value, int) and not isinstance(value, bool) and value.bit_length() > MAX_INTEGER_BITS:
+            raise MuxError(f"El resultado supera el límite de {MAX_INTEGER_BITS} bits")
+        if isinstance(value, float) and not math.isfinite(value):
+            raise MuxError("La operación produciría un número no finito")
+        if isinstance(value, (str, list, tuple, dict)) and len(value) > MAX_STRING_CHARACTERS:
+            raise MuxError("El resultado supera el límite de tamaño de Mux")
+        return value
+
+    @staticmethod
+    def _guard_binary_size(operator, left, right):
+        if operator == "PLUS" and isinstance(left, (str, list)) and isinstance(right, type(left)):
+            if len(left) + len(right) > MAX_STRING_CHARACTERS:
+                raise MuxError("La concatenación supera el límite de tamaño de Mux")
+        if operator == "MULT":
+            sequence, count = (left, right) if isinstance(right, int) and not isinstance(right, bool) else (right, left)
+            if isinstance(sequence, (str, list)) and isinstance(count, int) and not isinstance(count, bool):
+                if len(sequence) * max(count, 0) > MAX_STRING_CHARACTERS:
+                    raise MuxError("La repetición supera el límite de tamaño de Mux")
+            if isinstance(left, int) and isinstance(right, int) and not isinstance(left, bool) and not isinstance(right, bool):
+                if left and right and abs(left).bit_length() + abs(right).bit_length() > MAX_INTEGER_BITS + 1:
+                    raise MuxError(f"La multiplicación superaría el límite de {MAX_INTEGER_BITS} bits")
 
     @classmethod
     def _strict_equal(cls, left, right):
@@ -505,10 +616,14 @@ class Interpreter:
         from .native_stdlib import NativeFunction
 
         if isinstance(function, NativeFunction):
+            self._tick()
             return function.function(self, *args)
         if not isinstance(function, FunctionValue):
             raise MuxError(f"{function!r} no es una función")
         self._expect_arity(function.name, args, len(function.params))
+        if len(self.call_stack) >= self.max_call_depth:
+            raise self._located_error(f"Se superó el límite de {self.max_call_depth} llamadas anidadas")
+        self._tick()
         global_names, nonlocal_names = self._function_declarations(function.body)
         if global_names.intersection(nonlocal_names):
             raise MuxError("Una variable no puede ser global y nonlocal a la vez")
@@ -517,11 +632,19 @@ class Interpreter:
             raise MuxError("Un parámetro no puede declararse global o nonlocal")
         frame = dict(zip(function.params, args))
         environment = (frame,) + tuple(function.closure)
+        previous_filename = self.filename
+        previous_current_dir = self.current_dir
+        previous_source_map = self.source_map
+        call_token = self.current_location
+        call_site = (previous_filename, call_token.line if call_token else "?")
+        if function.source_map is not None:
+            self.source_map = function.source_map
+        self.filename = function.filename
+        self.current_dir = function.current_dir
         self.environments.append(environment)
         self.declarations.append((global_names, nonlocal_names))
         self.global_scope_stack.append(function.globals)
-        call_token = self.current_location
-        self.call_stack.append((function.name, self.filename, call_token.line if call_token else "?"))
+        self.call_stack.append((function.name, call_site[0], call_site[1]))
         try:
             self._eval_block(function.body)
         except ReturnException as exc:
@@ -534,6 +657,9 @@ class Interpreter:
             self.global_scope_stack.pop()
             self.declarations.pop()
             self.environments.pop()
+            self.filename = previous_filename
+            self.current_dir = previous_current_dir
+            self.source_map = previous_source_map
         return None
 
     def call_builtin(self, name: str, arg_expressions: List):
@@ -579,9 +705,14 @@ class Interpreter:
             if any(not isinstance(value, int) or isinstance(value, bool) for value in values):
                 raise MuxError("range() requiere enteros")
             try:
-                return range(*values)
+                result = range(*values)
+                if len(result) > MAX_COLLECTION_ITEMS:
+                    raise MuxError(f"range() no puede producir más de {MAX_COLLECTION_ITEMS} iteraciones")
+                return result
             except ValueError as exc:
                 raise MuxError(f"range(): {exc}") from exc
+            except OverflowError as exc:
+                raise MuxError("range() supera el tamaño máximo permitido") from exc
         raise MuxError(f"Función builtin {name!r} no encontrada")
 
     @staticmethod
@@ -634,8 +765,28 @@ class Interpreter:
                         input_fn=self.input,
                         max_steps=self.max_steps,
                         module_cache=self.modules,
+                        budget=self.budget,
+                        max_call_depth=self.max_call_depth,
+                        cancel_event=self.cancel_event,
+                        allowed_root=self.allowed_root,
+                        call_stack=self.call_stack,
                     )
-                    code = module_path.read_text(encoding="utf-8")
+                    if module_path.stat().st_size > MAX_MODULE_SOURCE_BYTES:
+                        raise MuxError(
+                            f"El módulo supera el límite de {MAX_MODULE_SOURCE_BYTES // (1024 * 1024)} MiB",
+                            str(module_path),
+                        )
+                    with module_path.open("rb") as source_file:
+                        source_bytes = source_file.read(MAX_MODULE_SOURCE_BYTES + 1)
+                    if len(source_bytes) > MAX_MODULE_SOURCE_BYTES:
+                        raise MuxError(
+                            f"El módulo supera el límite de {MAX_MODULE_SOURCE_BYTES // (1024 * 1024)} MiB",
+                            str(module_path),
+                        )
+                    try:
+                        code = source_bytes.decode("utf-8")
+                    except UnicodeDecodeError as exc:
+                        raise MuxError(f"El módulo no es UTF-8 válido: {exc}", str(module_path)) from exc
                     lexer = Lexer(code, str(module_path))
                     tokens = lexer.tokenize()
                     parser = Parser(tokens, str(module_path))
@@ -680,8 +831,18 @@ class Interpreter:
         except ImportError:
             pass
         for candidate in candidates:
-            if candidate.is_file():
-                return candidate.resolve()
+            try:
+                is_file = candidate.is_file()
+                resolved = candidate.resolve() if is_file else None
+            except (OSError, RuntimeError):
+                continue
+            if is_file:
+                if self.allowed_root is not None:
+                    try:
+                        resolved.relative_to(self.allowed_root)
+                    except ValueError:
+                        continue
+                return resolved
         # Modules without a user file are resolved by native_stdlib.create_module.
         return None
 

@@ -1,13 +1,13 @@
 # Notas de versión
 
-## 1.1.0 — cambios del código actual
+## 1.2.0 — cambios del código fuente
 
-- Parser con separadores de línea, progreso garantizado y mensajes con ubicación.
-- Runtime con scopes léxicos, imports con alias, errores de ejecución contextualizados y límite de pasos.
-- CLI con REPL, `--check`, `--tokens`, `--ast`, stdin y códigos de salida.
-- Módulos estándar implementados con APIs reales; integraciones externas opcionales.
-- Gestor de paquetes para fuentes locales y ZIP HTTPS verificados con hash, extracción restringida y cambios transaccionales.
-- Versión única, metadatos de paquete y scripts de compilación y distribución actualizados.
-- Documentación y ejemplos alineados con la funcionalidad disponible.
+- AST con spans, errores JSON, parser con límites y errores de ejecución con contexto de función/import.
+- CLI `mux archivo.mux` con configuración, linter, formatter, watch, argumentos, REPL con historial y diagnósticos.
+- Límites del runtime y de módulos nativos, sandbox de rutas, validación HTTP/JSON y operaciones SQLite acotadas.
+- Gestor con SemVer, HTTPS, SHA-256, firmas Ed25519, empaquetado, índices configurables, lockfiles y auditoría.
+- Suite automatizada y CI para Linux, Windows, macOS, varias versiones de Python y validación de artefactos.
+- Especificación EBNF, guía de seguridad, configuración, referencia, benchmark y sintaxis/snippets para VS Code.
+- Versión única en `mux_lang/_version.py`; los metadatos generados `mux_lang.egg-info` dejan de versionarse.
 
-Los artefactos binarios se generan localmente. Estas notas describen el código fuente del repositorio; no afirman que haya una release publicada ni que se hayan construido binarios para todas las plataformas.
+Las instalaciones de paquetes HTTPS requieren firma Ed25519 por defecto; `--allow-unsigned` permite optar explícitamente por comprobar solo SHA-256. No se ha configurado un registro público ni una clave oficial de firma. Los artefactos binarios se generan localmente; estas notas no afirman que haya una release publicada ni que se hayan construido binarios para todas las plataformas.
