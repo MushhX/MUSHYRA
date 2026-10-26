@@ -1,6 +1,6 @@
 # Hoja de ruta
 
-La versión de desarrollo pasa a 1.2.0. Esta lista separa las capacidades incorporadas de las siguientes decisiones de producto; no promete fechas.
+La versión publicada más reciente es 2.0.0. Esta lista separa las capacidades incorporadas de las siguientes decisiones de producto; no promete fechas.
 
 ## Incorporado en esta iteración
 
@@ -15,10 +15,11 @@ La versión de desarrollo pasa a 1.2.0. Esta lista separa las capacidades incorp
 - Gestor con SemVer, hashes por archivo, firmas Ed25519, índice configurable, lockfiles, empaquetado e inspección de integridad.
 - Guía de sintaxis y snippets para VS Code.
 - Argumentos de función por defecto, con nombre y variádicos; tuplas, desempaquetado de patrones y slices.
+- Funciones anónimas `lambda` con expresiones, cierres léxicos y validación estática de nombres.
 
 ## Siguientes áreas
 
-- Decidir semántica y compatibilidad de clases, excepciones propias, generadores y concurrencia del lenguaje.
+- Decidir semántica y compatibilidad de clases, excepciones propias, generadores y concurrencia del lenguaje; `lambda` ya está incorporado.
 - Evaluar bytecode/VM únicamente después de medir el árbol de ejecución con cargas representativas.
 - Publicar un índice operado por el proyecto y gestionar su raíz de confianza y rotación de claves.
 - Ampliar telemetría opt-in y documentación de rendimiento sin recopilar datos por defecto.

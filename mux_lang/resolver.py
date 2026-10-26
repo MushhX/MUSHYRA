@@ -126,6 +126,10 @@ def _expression_names(expression, bound_names=frozenset()):
         if expression[1] not in bound_names:
             yield expression[1], expression
         return
+    if kind == "lambda" and len(expression) > 2:
+        nested_bound = bound_names | frozenset(expression[1])
+        yield from _expression_names(expression[2], nested_bound)
+        return
     if kind == "list_comp" and len(expression) > 4:
         variable = expression[2][1]
         nested_bound = bound_names | {variable}

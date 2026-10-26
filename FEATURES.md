@@ -6,12 +6,12 @@
 - Listas, tuplas y diccionarios; comprensiones, índices, slices, desempaquetado de secuencias y diccionarios y asignación por índice, slice o atributo.
 - Operadores aritméticos, comparación estricta, `&&`, `||` y `!` con evaluación corta.
 - `if`/`elif`/`else`, `repeat`, `N times [do]`, `while`, `for`, `each`, `until`, `unless` y `loop`.
-- `break` y `continue` en bucles; `pass`; funciones, `return`, `global` y `nonlocal`.
+- `break` y `continue` en bucles; `pass`; funciones nombradas y anónimas (`lambda`), `return`, `global` y `nonlocal`.
 - Llamadas `print`, `input`, `ask`, `len`, `type`, `str`, `int`, `float`, `range`, `assert`, `show`, `say`, `wait` y `exit`.
 - Imports completos, alias y `from ... import ...`.
 - Saltos de línea como separadores y `end` para cerrar bloques.
 
-El lenguaje todavía no incluye clases, excepciones propias, generadores, async/await, lambdas, `match` ni un sistema de tipos estático.
+El lenguaje todavía no incluye clases, excepciones propias, generadores, async/await, `match` ni un sistema de tipos estático.
 
 ## Intérprete y CLI
 
@@ -40,7 +40,7 @@ Incluye 21 módulos nativos: `math`, `random`, `sequence`, `path`, `csv`, `toml`
 
 ## Límites actuales
 
-- Clases/structs, excepciones propias, generadores, async/await, lambdas, `match`, sistema de tipos estático y conjuntos/colas.
+- Clases/structs, excepciones propias, generadores, async/await, `match`, sistema de tipos estático y conjuntos/colas.
 - Un registro público alojado y una clave de firma oficial requieren infraestructura y operación fuera del repositorio.
 - El modo sandbox es una restricción de capacidades dentro del intérprete, no aísla código hostil al nivel del sistema operativo.
 - El benchmark ofrece señales iniciales, no un profiler ni datos de pico de memoria.

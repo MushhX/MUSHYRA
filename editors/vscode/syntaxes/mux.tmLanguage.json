@@ -39,7 +39,7 @@
     "keywords": {
       "patterns": [
         {"name": "keyword.control.mux", "match": "\\b(?:if|elif|else|end|repeat|while|for|each|until|unless|loop|times|do|break|continue|return|exit|pass|assert)\\b"},
-        {"name": "keyword.declaration.mux", "match": "\\b(?:let|func|global|nonlocal)\\b"},
+        {"name": "keyword.declaration.mux", "match": "\\b(?:let|func|lambda|global|nonlocal)\\b"},
         {"name": "keyword.other.import.mux", "match": "\\b(?:import|from|as)\\b"}
       ]
     },

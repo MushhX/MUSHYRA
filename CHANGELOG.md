@@ -7,6 +7,7 @@
 - El lenguaje y sus herramientas pasan a llamarse MUSHYRA. `myr` y `myr-pkg` son los comandos principales; `mux` y `mux-pkg` siguen como alias compatibles.
 - `.myr` pasa a ser la extensión principal. Se siguen leyendo archivos `.mux`, configuraciones anteriores y paquetes con entradas `.mux`.
 - El paquete de instalación se llama `mushyra`; el módulo Python `mux_lang` y el repositorio conservan sus rutas para no romper imports ni enlaces existentes.
+- Las expresiones `lambda` permiten crear funciones anónimas con parámetros posicionales o con nombre y cierres léxicos.
 
 ## [1.2.0] - 2026-10-26
 

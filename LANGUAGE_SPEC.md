@@ -43,6 +43,7 @@ loop          = "repeat" expression block
               | number "times" [ "do" ] block ;
 function      = "func" identifier "(" [ parameter { "," parameter } [ "," ] ] ")"
                 block "end" ;
+lambda        = "lambda" [ identifier { "," identifier } ] ":" expression ;
 parameter     = [ "*" ] identifier [ "=" expression ] ;
 flow          = "return" [ expression ] | "break" | "continue"
               | "exit" [ "(" [ expression ] ")" | expression ]
@@ -63,7 +64,7 @@ unary         = ("!" | "-") unary | postfix ;
 postfix       = primary { "[" expression "]"
               | "[" [ expression ] ":" [ expression ] [ ":" [ expression ] ] "]"
               | "." identifier [ arguments ] } ;
-primary       = number | string | boolean | "null" | identifier [ arguments ]
+primary       = number | string | boolean | "null" | lambda | identifier [ arguments ]
               | "(" expression ")" | tuple | list | dictionary | builtin ;
 tuple         = "(" ")" | "(" expression "," [ expression { "," expression } [ "," ] ] ")" ;
 arguments     = "(" [ argument { "," argument } [ "," ] ] ")" ;
@@ -81,7 +82,7 @@ The parser evaluates comparison chains from left to right; they are not Python-s
 
 Functions use lexical bindings. A name assigned anywhere in a function is local throughout that function unless declared `global` or `nonlocal`; reading a local before its first assignment is an error. `nonlocal` must refer to a binding in an enclosing function. The resolver reports these errors before the program starts running.
 
-Functions accept positional and named arguments, trailing default parameters, and one final variadic parameter. For example, `func greet(name, prefix="Hola", *extras)` can be called as `greet("Ana")`, `greet(name="Ana")`, or `greet("Ana", "Buenas", 1, 2)`, where `extras` is a list. Required parameters must precede parameters with defaults and the variadic parameter; positional arguments must precede named arguments; duplicate, unknown, or missing arguments are errors. Defaults are evaluated once when the function definition executes. Native functions continue to accept positional arguments only. Calls to variables use `name(...)`; module functions use `module.function(...)`. Statement separators are newlines, and every block closes with `end`.
+Functions accept positional and named arguments, trailing default parameters, and one final variadic parameter. For example, `func greet(name, prefix="Hola", *extras)` can be called as `greet("Ana")`, `greet(name="Ana")`, or `greet("Ana", "Buenas", 1, 2)`, where `extras` is a list. Required parameters must precede parameters with defaults and the variadic parameter; positional arguments must precede named arguments; duplicate, unknown, or missing arguments are errors. Defaults are evaluated once when the function definition executes. Native functions continue to accept positional arguments only. Lambda expressions use `lambda x, y: expression`, may close over variables in their lexical environment, and support positional or named calls; they are expression-only and do not support defaults or variadic parameters. Calls to variables use `name(...)`; module functions use `module.function(...)`. Statement separators are newlines, and every block closes with `end`.
 
 Parentheses group expressions; a comma creates an immutable tuple, including the one-element form `(value,)` and empty form `()`. List and dictionary comprehensions evaluate their iterable once, bind the iteration variable in a temporary local scope, and optionally filter each item with `if`; for example, `[value * 2 for value in numbers if value > 0]` and `{value: value * 2 for value in numbers}`. Comprehensions accept at most one iteration clause and are limited to one million input elements.
 

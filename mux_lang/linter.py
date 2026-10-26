@@ -30,6 +30,10 @@ def _walk(value, bound_names=frozenset()):
                 for child in value[2:]:
                     yield from _walk(child, bound_names)
                 return
+            if kind == "lambda" and len(value) > 2:
+                yield value
+                yield from _walk(value[2], bound_names | frozenset(value[1]))
+                return
             yield value
             if kind == "list_comp" and len(value) > 4:
                 variable = value[2][1]

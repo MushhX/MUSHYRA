@@ -785,6 +785,16 @@ class Interpreter:
                 return expr[1]
             if kind == "var":
                 return self.get_var(expr[1])
+            if kind == "lambda":
+                params, body = expr[1], expr[2]
+                closure = self.environments[-1] if self.environments else ()
+                global_scope = self.global_scope_stack[-1] if self.global_scope_stack else self.globals
+                self._charge_allocation(128 + 8 * len(params) + 8 * len(closure))
+                return FunctionValue(
+                    "<lambda>", list(params), [("return", body)], tuple(closure), global_scope,
+                    self.source_map, self.filename, self.current_dir,
+                    frozenset(params), definition_span=getattr(expr, "span", None),
+                )
             if kind == "list":
                 if len(expr[1]) > MAX_COLLECTION_ITEMS:
                     raise MuxError(f"Una lista no puede superar {MAX_COLLECTION_ITEMS} elementos")

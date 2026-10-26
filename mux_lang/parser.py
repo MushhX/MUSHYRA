@@ -124,6 +124,7 @@ class Parser:
             "assign", "index_assign", "slice_assign", "attr_assign", "global", "nonlocal", "number",
             "string", "bool", "null", "var", "list", "list_comp", "tuple", "dict", "dict_comp", "index", "attr",
             "method", "unary", "binop", "builtin", "call",
+            "lambda",
             "named_arg", "comp_var", "pattern_name", "pattern_list", "pattern_dict", "destructure_let",
             "destructure_assign", "slice",
         }
@@ -752,6 +753,8 @@ class Parser:
         token = self.current()
         if token is None:
             raise self.error("Expresión incompleta al final del archivo", token)
+        if token.type == "LAMBDA":
+            return self.parse_lambda()
         if token.type == "NUMBER":
             self.advance()
             digits = token.value.replace("_", "")
@@ -805,6 +808,23 @@ class Parser:
             self.expect("RPAREN")
             return expr
         raise self.error(f"Token {token.type} no puede iniciar una expresión", token)
+
+    def parse_lambda(self):
+        lambda_token = self.expect("LAMBDA")
+        params = []
+        while self.current() and self.current().type != "COLON":
+            param_token = self.expect("ID")
+            if param_token.value in params:
+                raise self.error(f"Parámetro duplicado en lambda: {param_token.value}", param_token)
+            params.append(param_token.value)
+            if len(params) > 256:
+                raise self.error("Una lambda no puede tener más de 256 parámetros", lambda_token)
+            if not self.current() or self.current().type != "COMMA":
+                break
+            self.advance()
+        self.expect("COLON")
+        body = self.parse_expression()
+        return ("lambda", params, body)
 
     def _parse_arguments(self, end_type: str):
         args = []

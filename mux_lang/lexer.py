@@ -111,6 +111,7 @@ class Lexer:
         ("FOR", r"\bfor\b"),
         ("IN", r"\bin\b"),
         ("FUNC", r"\bfunc\b"),
+        ("LAMBDA", r"\blambda\b"),
         ("RETURN", r"\breturn\b"),
         ("BREAK", r"\bbreak\b"),
         ("CONTINUE", r"\bcontinue\b"),
