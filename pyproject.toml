@@ -39,7 +39,7 @@ web = ["flask>=2.3,<4"]
 discord = ["discord.py>=2.3,<3"]
 telegram = ["python-telegram-bot>=20,<23"]
 whatsapp = ["twilio>=8.10,<10"]
-crypto = ["cryptography>=41,<47"]
+crypto = ["cryptography>=41,<51"]
 regex = ["regex>=2023.0"]
 toml = ["tomli>=2,<3; python_version < '3.11'"]
 build = ["pyinstaller>=6,<7", "Pillow>=9,<13", "build>=1,<2"]
@@ -48,7 +48,7 @@ full = [
   "discord.py>=2.3,<3",
   "python-telegram-bot>=20,<23",
   "twilio>=8.10,<10",
-  "cryptography>=41,<47",
+  "cryptography>=41,<51",
   "regex>=2023.0",
   "tomli>=2,<3; python_version < '3.11'",
 ]
