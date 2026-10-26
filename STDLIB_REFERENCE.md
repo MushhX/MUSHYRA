@@ -12,6 +12,18 @@ Constantes `pi`, `e`; funciones `abs(x)`, `max(x, ...)`, `min(x, ...)`, `pow(x, 
 
 `randint(min, max)`, `random()`, `choice(coleccion)`, `shuffle(lista)`, `sample(coleccion, cantidad)` y `seed(valor)`. `shuffle` modifica y devuelve la misma lista. Este módulo usa un generador pseudoaleatorio y no sirve para crear credenciales.
 
+## `sequence`
+
+`map(funcion, coleccion)` y `filter(funcion, coleccion)` devuelven listas; `enumerate(coleccion[, inicio])` devuelve pares `(indice, valor)`; `zip(coleccion1, coleccion2[, ...])` devuelve tuplas hasta terminar la colección más corta. `any(coleccion)` y `all(coleccion)` devuelven booleanos con evaluación corta; `sum(coleccion)` suma números. Acepta listas, tuplas, strings, rangos y diccionarios (se recorren sus claves). Cada entrada se procesa con el presupuesto del intérprete y se limita a un millón de elementos. `map` y `filter` llaman funciones Mux y nativas.
+
+```mux
+import sequence as seq
+func doble(valor)
+    return valor * 2
+end
+let dobles = seq.map(doble, [1, 2, 3])
+```
+
 ## `env`
 
 `get(nombre[, predeterminado])` lee una variable de entorno y devuelve `null` si no existe; `require(nombre)` falla con un error legible si falta o está vacía; `has(nombre)` comprueba si está definida. El módulo no permite modificar el entorno.
@@ -25,7 +37,7 @@ Admite URL HTTP/HTTPS absolutas sin credenciales embebidas. Bloquea direcciones 
 
 ## `filesystem`
 
-`read(ruta[, encoding])`, `write(ruta, contenido[, encoding])`, `append(ruta, contenido[, encoding])`, `exists(ruta)`, `remove_file(ruta)`, `list_dir(ruta)`, `create_dir(ruta)` y `get_size(ruta)`. `write` usa reemplazo atómico; `write` y `append` crean directorios padre. Lecturas y escrituras se limitan a 50 MiB. `remove_file` elimina archivos, no directorios.
+`read(ruta[, encoding])`, `write(ruta, contenido[, encoding])`, `append(ruta, contenido[, encoding])`, `exists(ruta)`, `remove_file(ruta)`, `list_dir(ruta)`, `create_dir(ruta)` y `get_size(ruta)`. `write` usa reemplazo atómico; `write` y `append` crean directorios padre. `read` se limita a 10 MiB para acotar strings; las escrituras se limitan a 50 MiB y `list_dir` a 100 000 entradas. `remove_file` elimina archivos, no directorios.
 
 ## `json`
 
@@ -51,7 +63,7 @@ Admite URL HTTP/HTTPS absolutas sin credenciales embebidas. Bloquea direcciones 
 
 SQLite local. `connect(ruta[, timeout])` activa claves foráneas, WAL y timeout configurable; `create_table(tabla, columnas)` crea columnas de texto y trata `id` como clave primaria autoincremental; `insert(tabla, valores)`, `select(tabla[, condicion[, limit[, offset]]])`, `update(tabla, valores, condicion)`, `delete(tabla, condicion)`, `execute(sql[, parametros])`, `begin()`, `commit()`, `rollback()`, `transaction(funcion)` y `close([conexion])`.
 
-`select` devuelve páginas de hasta 10 000 filas; `execute` también limita resultados a 10 000. Las condiciones sencillas aceptan, por ejemplo, `"edad >= 18"` o `"nombre = 'Ana'"`. `update` y `delete` requieren condición. `transaction(funcion)` confirma si la función termina bien y revierte si falla. Para consultas complejas usa `execute` con una lista de parámetros; no concatene datos externos en SQL. Con `--sandbox-root`, `execute` bloquea instrucciones `ATTACH`, `DETACH`, `PRAGMA` y `VACUUM INTO` para mantener la restricción de rutas.
+`select` devuelve páginas de hasta 10 000 filas; `execute` también limita resultados a 10 000. Los resultados están limitados a 10 MiB. Las condiciones sencillas aceptan, por ejemplo, `"edad >= 18"` o `"nombre = 'Ana'"`. `update` y `delete` requieren condición. `transaction(funcion)` confirma si la función termina bien y revierte si falla. Para consultas complejas usa `execute` con una lista de parámetros; no concatene datos externos en SQL. Con `--sandbox-root`, `execute` bloquea instrucciones `ATTACH`, `DETACH`, `PRAGMA` y `VACUUM INTO` para mantener la restricción de rutas.
 
 ```mux
 import database as db

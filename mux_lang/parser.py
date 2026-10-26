@@ -120,9 +120,11 @@ class Parser:
             "print", "if", "repeat", "while", "for", "func", "return", "break",
             "continue", "assert", "show", "say", "wait", "exit", "pass", "loop",
             "until", "unless", "each", "expr_stmt", "import", "from_import", "let",
-            "assign", "index_assign", "attr_assign", "global", "nonlocal", "number",
-            "string", "bool", "null", "var", "list", "dict", "index", "attr",
+            "assign", "index_assign", "slice_assign", "attr_assign", "global", "nonlocal", "number",
+            "string", "bool", "null", "var", "list", "tuple", "dict", "index", "attr",
             "method", "unary", "binop", "builtin", "call",
+            "named_arg", "pattern_name", "pattern_list", "destructure_let",
+            "destructure_assign", "slice",
         }
         old_source_map = self.source_map
         new_source_map = {}
@@ -293,9 +295,66 @@ class Parser:
 
     def parse_let(self):
         self.advance()
+        if self.current() and self.current().type in ("LBRACKET", "LPAREN"):
+            pattern = self.parse_pattern()
+            self.expect("ASSIGN")
+            return ("destructure_let", pattern, self.parse_expression())
         name = self.expect("ID").value
         self.expect("ASSIGN")
         return ("let", name, self.parse_expression())
+
+    def parse_pattern(self):
+        token = self.current()
+        if token is None:
+            raise self.error("Se esperaba un patrón de asignación", token)
+        if token.type == "ID":
+            self.advance()
+            pattern = ("pattern_name", token.value)
+            self.node_spans[id(pattern)] = self._span_from_tokens(token, token)
+            self.source_map[id(pattern)] = token
+            return pattern
+        if token.type not in ("LBRACKET", "LPAREN"):
+            raise self.error("El patrón solo admite nombres dentro de una lista o tupla", token)
+        closing_type = "RBRACKET" if token.type == "LBRACKET" else "RPAREN"
+        opening = self.advance()
+        items = []
+        saw_comma = False
+        if self.current() and self.current().type != closing_type:
+            while True:
+                items.append(self.parse_pattern())
+                if not self.current() or self.current().type != "COMMA":
+                    break
+                saw_comma = True
+                self.advance()
+                if self.current() and self.current().type == closing_type:
+                    break
+        if not items and closing_type == "RBRACKET":
+            raise self.error("El patrón de lista no puede estar vacío", opening)
+        if not items:
+            raise self.error("El patrón de tupla no puede estar vacío", opening)
+        closing = self.expect(closing_type)
+        if closing_type == "RPAREN" and len(items) == 1 and not saw_comma:
+            # Parentheses around a single name are grouping, like an expression.
+            return items[0]
+        pattern = ("pattern_list", items)
+        self.node_spans[id(pattern)] = self._span_from_tokens(opening, closing)
+        self.source_map[id(pattern)] = opening
+        return pattern
+
+    def _expression_pattern(self, expression):
+        if expression[0] == "var":
+            pattern = ("pattern_name", expression[1])
+        elif expression[0] in ("list", "tuple") and expression[1]:
+            children = [self._expression_pattern(item) for item in expression[1]]
+            if any(child is None for child in children):
+                return None
+            pattern = ("pattern_list", children)
+        else:
+            return None
+        span = self.expression_spans.get(id(expression))
+        if span is not None:
+            self.node_spans[id(pattern)] = span
+        return pattern
 
     def parse_expression_statement(self):
         token = self.current()
@@ -307,8 +366,13 @@ class Parser:
                 return ("assign", expr[1], value)
             if expr[0] == "index":
                 return ("index_assign", expr[1], expr[2], value)
+            if expr[0] == "slice":
+                return ("slice_assign", expr[1], expr[2], expr[3], expr[4], value)
             if expr[0] == "attr":
                 return ("attr_assign", expr[1], expr[2], value)
+            pattern = self._expression_pattern(expr)
+            if pattern is not None:
+                return ("destructure_assign", pattern, value)
             raise self.error("El destino de asignación debe ser una variable, índice o atributo", token)
         if expr[0] not in ("call", "method", "builtin"):
             raise self.error("Se esperaba una llamada o una asignación", token)
@@ -389,12 +453,38 @@ class Parser:
         name = self.expect("ID").value
         self.expect("LPAREN")
         params = []
+        defaults = []
+        has_default = False
+        vararg = None
         if self.current() and self.current().type != "RPAREN":
             while True:
-                param = self.expect("ID").value
+                if self.current() and self.current().type == "MULT":
+                    marker = self.advance()
+                    if vararg is not None:
+                        raise self.error("Una función solo puede declarar un parámetro variádico", marker)
+                    param_token = self.expect("ID")
+                    param = param_token.value
+                    if param in params:
+                        raise self.error(f"Parámetro duplicado: {param}", param_token)
+                    params.append(param)
+                    vararg = param
+                    if self.current() and self.current().type == "COMMA":
+                        self.advance()
+                        if self.current() and self.current().type != "RPAREN":
+                            raise self.error("El parámetro variádico debe ser el último", self.current())
+                    break
+                param_token = self.expect("ID")
+                param = param_token.value
                 if param in params:
                     raise self.error(f"Parámetro duplicado: {param}")
                 params.append(param)
+                if self.current() and self.current().type == "ASSIGN":
+                    self.advance()
+                    defaults.append((param, self.parse_expression()))
+                    has_default = True
+                elif has_default:
+                    raise self.error("Los parámetros obligatorios deben ir antes de los parámetros con valor por defecto",
+                                     param_token)
                 if not self.current() or self.current().type != "COMMA":
                     break
                 self.advance()
@@ -410,7 +500,38 @@ class Parser:
         finally:
             self.function_depth -= 1
             self.loop_depth = previous_loop_depth
-        return ("func", name, params, body)
+        return ("func", name, params, body, defaults, vararg)
+
+    def _parse_call_arguments(self, end_type):
+        args = []
+        named = set()
+        saw_named = False
+        if self.current() and self.current().type != end_type:
+            while True:
+                if (self.current() is not None and self.current().type == "ID" and self.peek()
+                        and self.peek().type == "ASSIGN"):
+                    name_token = self.advance()
+                    if name_token.value in named:
+                        raise self.error(f"Argumento con nombre repetido: {name_token.value}", name_token)
+                    named.add(name_token.value)
+                    saw_named = True
+                    self.expect("ASSIGN")
+                    value = self.parse_expression()
+                    argument = ("named_arg", name_token.value, value)
+                    last = self.tokens[self.pos - 1] if self.pos else name_token
+                    self.node_spans[id(argument)] = self._span_from_tokens(name_token, last)
+                    self.source_map[id(argument)] = name_token
+                    args.append(argument)
+                else:
+                    if saw_named:
+                        raise self.error("Los argumentos posicionales deben ir antes de los argumentos con nombre")
+                    args.append(self.parse_expression())
+                if not self.current() or self.current().type != "COMMA":
+                    break
+                self.advance()
+                if self.current() and self.current().type == end_type:
+                    break
+        return args
 
     def parse_exit(self):
         self.advance()
@@ -532,15 +653,32 @@ class Parser:
         while self.current():
             if self.current().type == "LBRACKET":
                 self.advance()
-                index = self.parse_expression()
+                lower = None
+                if self.current() and self.current().type != "COLON":
+                    lower = self.parse_expression()
+                if self.current() and self.current().type == "COLON":
+                    self.advance()
+                    upper = None
+                    if self.current() and self.current().type not in ("COLON", "RBRACKET"):
+                        upper = self.parse_expression()
+                    step = None
+                    if self.current() and self.current().type == "COLON":
+                        self.advance()
+                        if self.current() and self.current().type != "RBRACKET":
+                            step = self.parse_expression()
+                    self.expect("RBRACKET")
+                    expr = ("slice", expr, lower, upper, step)
+                    continue
+                if lower is None:
+                    raise self.error("El índice no puede estar vacío")
                 self.expect("RBRACKET")
-                expr = ("index", expr, index)
+                expr = ("index", expr, lower)
             elif self.current().type == "DOT":
                 self.advance()
                 name = self.expect("ID").value
                 if self.current() and self.current().type == "LPAREN":
                     self.advance()
-                    args = self._parse_arguments("RPAREN")
+                    args = self._parse_call_arguments("RPAREN")
                     self.expect("RPAREN")
                     expr = ("method", expr, name, args)
                 else:
@@ -584,13 +722,25 @@ class Parser:
             name = self.advance().value
             if self.current() and self.current().type == "LPAREN":
                 self.advance()
-                args = self._parse_arguments("RPAREN")
+                args = self._parse_call_arguments("RPAREN")
                 self.expect("RPAREN")
                 return ("call", name, args)
             return ("var", name)
         if token.type == "LPAREN":
             self.advance()
+            if self.current() and self.current().type == "RPAREN":
+                self.advance()
+                return ("tuple", [])
             expr = self.parse_expression()
+            if self.current() and self.current().type == "COMMA":
+                items = [expr]
+                while self.current() and self.current().type == "COMMA":
+                    self.advance()
+                    if self.current() and self.current().type == "RPAREN":
+                        break
+                    items.append(self.parse_expression())
+                self.expect("RPAREN")
+                return ("tuple", items)
             self.expect("RPAREN")
             return expr
         raise self.error(f"Token {token.type} no puede iniciar una expresión", token)

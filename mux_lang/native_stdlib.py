@@ -32,9 +32,13 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+from .values import ValueSemantics
+
 
 MAX_HTTP_RESPONSE_BYTES = 10 * 1024 * 1024
 MAX_NATIVE_FILE_BYTES = 50 * 1024 * 1024
+MAX_MUX_STRING_BYTES = 10 * 1024 * 1024
+MAX_DATABASE_RESULT_BYTES = 10 * 1024 * 1024
 MAX_JSON_BYTES = 10 * 1024 * 1024
 MAX_REGEX_PATTERN_CHARS = 512
 MAX_REGEX_INPUT_CHARS = 64 * 1024
@@ -42,6 +46,7 @@ MAX_REGEX_RESULTS = 100_000
 MAX_REGEX_OUTPUT_CHARS = 10 * 1024 * 1024
 MAX_EMAIL_ATTACHMENT_BYTES = 10 * 1024 * 1024
 MAX_DIRECTORY_ENTRIES = 100_000
+MAX_NATIVE_SEQUENCE_ITEMS = 1_000_000
 
 
 def _read_text_bounded(path, encoding="utf-8", limit=MAX_NATIVE_FILE_BYTES):
@@ -73,6 +78,45 @@ def _atomic_write_text(path, content, encoding="utf-8"):
             os.unlink(temporary_name)
         except FileNotFoundError:
             pass
+
+
+def _utf8_length(text, interpreter=None):
+    if text.isascii():
+        return len(text)
+    size = 0
+    for index, char in enumerate(text):
+        if interpreter is not None and index % 4096 == 0:
+            interpreter._tick()
+        codepoint = ord(char)
+        size += 1 if codepoint < 0x80 else 2 if codepoint < 0x800 else 3 if codepoint < 0x10000 else 4
+        if size > MAX_DATABASE_RESULT_BYTES:
+            return size
+    return size
+
+
+def _bounded_sql_rows(cursor, max_rows=10_000, interpreter=None):
+    rows = []
+    result_bytes = 0
+    for row in cursor:
+        if interpreter is not None:
+            interpreter._tick()
+        if len(rows) >= max_rows:
+            raise _error(f"La consulta supera el límite de {max_rows} filas; pagina los resultados")
+        converted = dict(row)
+        for key, value in converted.items():
+            if interpreter is not None:
+                interpreter._tick()
+            result_bytes += _utf8_length(str(key), interpreter) + 16
+            if isinstance(value, str):
+                result_bytes += _utf8_length(value, interpreter)
+            elif isinstance(value, (bytes, bytearray, memoryview)):
+                result_bytes += len(value)
+            else:
+                result_bytes += 16
+        if result_bytes > MAX_DATABASE_RESULT_BYTES:
+            raise _error("El resultado SQLite supera el límite de 10 MiB")
+        rows.append(converted)
+    return rows
 
 
 def _strict_json_loads(text):
@@ -277,6 +321,112 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             "shuffle": shuffle, "sample": sample, "seed": seed,
         }.items()}
 
+    if name == "sequence":
+        from .interpreter import FunctionValue
+
+        def sequence_items(value):
+            if not isinstance(value, (list, tuple, str, range, dict)):
+                raise _error("Se requiere una lista, tupla, string, range o diccionario")
+            try:
+                size = len(value)
+            except OverflowError as exc:
+                raise _error("La secuencia supera el tamaño máximo permitido") from exc
+            if size > MAX_NATIVE_SEQUENCE_ITEMS:
+                raise _error(f"Una secuencia no puede superar {MAX_NATIVE_SEQUENCE_ITEMS} elementos")
+            return value, size
+
+        def snapshot(value):
+            value, size = sequence_items(value)
+            item_cost = 64 if isinstance(value, str) else 36 if isinstance(value, range) else 8
+            interpreter._charge_allocation(48 + item_cost * size)
+            items = []
+            for item in value:
+                interpreter._tick()
+                items.append(item)
+            return items
+
+        def callback(value):
+            if not isinstance(value, (FunctionValue, NativeFunction)):
+                raise _error("El primer argumento debe ser una función Mux")
+            return value
+
+        def map_values(_vm, *args):
+            _arity("sequence.map", args, 2)
+            function = callback(args[0])
+            items = snapshot(args[1])
+            result = []
+            for item in items:
+                interpreter._tick()
+                result.append(interpreter.call_value(function, [item]))
+            return result
+
+        def filter_values(_vm, *args):
+            _arity("sequence.filter", args, 2)
+            function = callback(args[0])
+            items = snapshot(args[1])
+            result = []
+            for item in items:
+                interpreter._tick()
+                if ValueSemantics.truthy(interpreter.call_value(function, [item])):
+                    result.append(item)
+            return result
+
+        def enumerate_values(_vm, *args):
+            _arity("sequence.enumerate", args, 1, 2)
+            start = args[1] if len(args) == 2 else 0
+            if not isinstance(start, int) or isinstance(start, bool):
+                raise _error("sequence.enumerate requiere un índice entero")
+            items, _size = sequence_items(args[0])
+            result = []
+            for index, item in enumerate(items):
+                interpreter._tick()
+                result.append((interpreter._guard_value(start + index), item))
+            return result
+
+        def zip_values(_vm, *args):
+            _arity("sequence.zip", args, 2, 32)
+            sources = [sequence_items(value)[0] for value in args]
+            result_size = min(map(len, sources))
+            result = []
+            for index in range(result_size):
+                interpreter._tick()
+                result.append(tuple(source[index] for source in sources))
+            return result
+
+        def any_value(_vm, *args):
+            _arity("sequence.any", args, 1)
+            items, _size = sequence_items(args[0])
+            for item in items:
+                interpreter._tick()
+                if ValueSemantics.truthy(item):
+                    return True
+            return False
+
+        def all_value(_vm, *args):
+            _arity("sequence.all", args, 1)
+            items, _size = sequence_items(args[0])
+            for item in items:
+                interpreter._tick()
+                if not ValueSemantics.truthy(item):
+                    return False
+            return True
+
+        def sum_values(_vm, *args):
+            _arity("sequence.sum", args, 1)
+            total = 0
+            items, _size = sequence_items(args[0])
+            for item in items:
+                interpreter._tick()
+                if not ValueSemantics.is_number(item):
+                    raise _error("sequence.sum solo admite números")
+                total = interpreter._guard_value(total + item)
+            return total
+
+        return {key: _wrap(f"sequence.{key}", fn) for key, fn in {
+            "map": map_values, "filter": filter_values, "enumerate": enumerate_values,
+            "zip": zip_values, "any": any_value, "all": all_value, "sum": sum_values,
+        }.items()}
+
     if name == "env":
         def get_value(_vm, *args):
             _arity("get", args, 1, 2)
@@ -372,7 +522,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             if len(args) == 4 and not isinstance(args[3], bool):
                 raise _error("allow_private debe ser boolean")
             return request("GET", args[0], headers=args[1] if len(args) > 1 else None,
-                           timeout=args[2] if len(args) > 2 else 10,
+                           timeout=_vm.bounded_timeout(args[2] if len(args) > 2 else 10),
                            allow_private=args[3] if len(args) > 3 else False)
 
         def post(_vm, *args):
@@ -381,7 +531,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 raise _error("allow_private debe ser boolean")
             return request("POST", args[0], args[1],
                            args[2] if len(args) > 2 else None,
-                           args[3] if len(args) > 3 else 10,
+                           _vm.bounded_timeout(args[3] if len(args) > 3 else 10),
                            args[4] if len(args) > 4 else False)
 
         return {"get": _wrap("get", get), "post": _wrap("post", post)}
@@ -393,7 +543,9 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
         def read(vm, *args):
             _arity("read", args, 1, 2)
             try:
-                return _read_text_bounded(path_for(vm, args[0]), args[1] if len(args) > 1 else "utf-8")
+                return _read_text_bounded(path_for(vm, args[0]),
+                                          args[1] if len(args) > 1 else "utf-8",
+                                          limit=MAX_MUX_STRING_BYTES)
             except OSError as exc:
                 raise _error(f"No se pudo leer {args[0]!r}: {exc}") from exc
 
@@ -871,6 +1023,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             timeout = args[1] if len(args) > 1 else 5
             if not isinstance(timeout, (int, float)) or isinstance(timeout, bool) or not math.isfinite(timeout) or not 0 <= timeout <= 60:
                 raise _error("El timeout de SQLite debe estar entre 0 y 60 segundos")
+            timeout = vm.bounded_timeout(timeout)
             current = None
             try:
                 if path != ":memory:":
@@ -878,6 +1031,12 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 previous = state["connection"]
                 current = sqlite3.connect(str(path), timeout=float(timeout))
                 current.row_factory = sqlite3.Row
+                current.set_progress_handler(
+                    lambda: 1 if ((vm.cancel_event is not None and vm.cancel_event.is_set())
+                                  or (vm.budget.deadline is not None
+                                      and time.monotonic() >= vm.budget.deadline)) else 0,
+                    1000,
+                )
                 current.execute("PRAGMA foreign_keys = ON")
                 current.execute(f"PRAGMA busy_timeout = {int(float(timeout) * 1000)}")
                 if path != ":memory:":
@@ -937,7 +1096,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 raise _error("select requiere limit entre 1 y 10000 y offset no negativo")
             try:
                 rows = connection().execute(f"SELECT * FROM {identifier(args[0])}{clause} LIMIT ? OFFSET ?", params + [limit, offset])
-                return [dict(row) for row in rows.fetchall()]
+                return _bounded_sql_rows(rows, limit, _vm)
             except sqlite3.Error as exc:
                 raise _error(f"No se pudo consultar: {exc}") from exc
 
@@ -984,10 +1143,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 cursor = connection().execute(statement, params)
                 finish_write()
                 if cursor.description:
-                    rows = cursor.fetchmany(10001)
-                    if len(rows) > 10000:
-                        raise _error("execute no puede devolver más de 10000 filas; usa select con paginación")
-                    return [dict(row) for row in rows]
+                    return _bounded_sql_rows(cursor, interpreter=_vm)
                 return cursor.rowcount
             except sqlite3.Error as exc:
                 raise _error(f"Consulta SQL no válida: {exc}") from exc
@@ -1090,9 +1246,9 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 message.add_attachment(payload, maintype="application", subtype="octet-stream", filename=path.name)
             try:
                 if config["port"] == 465:
-                    smtp = smtplib.SMTP_SSL(config["host"], config["port"], timeout=15, context=ssl.create_default_context())
+                    smtp = smtplib.SMTP_SSL(config["host"], config["port"], timeout=vm.bounded_timeout(15), context=ssl.create_default_context())
                 else:
-                    smtp = smtplib.SMTP(config["host"], config["port"], timeout=15)
+                    smtp = smtplib.SMTP(config["host"], config["port"], timeout=vm.bounded_timeout(15))
                 with smtp:
                     if config["port"] != 465:
                         smtp.starttls(context=ssl.create_default_context())
@@ -1125,8 +1281,9 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
 
         def styled(text, code):
             value = str(text)
-            force = "FORCE_COLOR" in os.environ
-            enabled = "NO_COLOR" not in os.environ and (force or getattr(interpreter.output, "isatty", lambda: False)())
+            force = not interpreter.sandbox_mode and "FORCE_COLOR" in os.environ
+            enabled = (not interpreter.sandbox_mode and "NO_COLOR" not in os.environ
+                       and (force or getattr(interpreter.output, "isatty", lambda: False)()))
             return f"\033[{code}m{value}\033[0m" if enabled else value
 
         def color(_vm, *args):
@@ -1141,9 +1298,15 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             _arity("menu", args, 1)
             if not isinstance(args[0], list) or not args[0]:
                 raise _error("menu requiere una lista de opciones no vacía")
+            if len(args[0]) > 10_000:
+                raise _error("menu no admite más de 10000 opciones")
             for index, item in enumerate(args[0], 1):
+                _vm._tick()
                 print(f"{index}. {item}", file=interpreter.output)
-            answer = interpreter.input("Selecciona una opción: ")
+            try:
+                answer = _vm._read_input("Selecciona una opción: ")
+            except EOFError as exc:
+                raise _error("No hay más entrada disponible") from exc
             try:
                 result = int(answer)
             except EOFError as exc:
@@ -1157,7 +1320,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
         def confirm(_vm, *args):
             _arity("confirm", args, 1)
             try:
-                answer = interpreter.input(f"{args[0]} (s/n): ").strip().lower()
+                answer = _vm._read_input(f"{args[0]} (s/n): ").strip().lower()
             except EOFError as exc:
                 raise _error("No hay más entrada disponible") from exc
             return answer in ("s", "si", "sí", "y", "yes")
@@ -1168,13 +1331,32 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             if not isinstance(rows, list) or not rows:
                 print("(sin filas)", file=interpreter.output)
                 return True
-            if not all(isinstance(row, dict) for row in rows):
-                raise _error("table requiere una lista de diccionarios")
-            columns = list(dict.fromkeys(key for row in rows for key in row))
-            widths = {key: max(len(str(key)), *(len(str(row.get(key, ""))) for row in rows)) for key in columns}
+            if len(rows) > 10_000:
+                raise _error("table no admite más de 10000 filas")
+            columns = []
+            seen_columns = set()
+            for row in rows:
+                _vm._tick()
+                if not isinstance(row, dict):
+                    raise _error("table requiere una lista de diccionarios")
+                for key in row:
+                    _vm._tick()
+                    if key not in seen_columns:
+                        seen_columns.add(key)
+                        columns.append(key)
+                        if len(columns) > 100:
+                            raise _error("table no admite más de 100 columnas")
+            widths = {}
+            for key in columns:
+                width = len(str(key))
+                for row in rows:
+                    _vm._tick()
+                    width = max(width, len(str(row.get(key, ""))))
+                widths[key] = width
             print(" | ".join(str(key).ljust(widths[key]) for key in columns), file=interpreter.output)
             print("-+-".join("-" * widths[key] for key in columns), file=interpreter.output)
             for row in rows:
+                _vm._tick()
                 print(" | ".join(str(row.get(key, "")).ljust(widths[key]) for key in columns), file=interpreter.output)
             return True
 

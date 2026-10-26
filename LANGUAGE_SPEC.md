@@ -20,9 +20,13 @@ import        = "import" module [ "as" identifier ]
               | "from" module "import" identifier [ "as" identifier ]
                 { "," identifier [ "as" identifier ] } ;
 module        = identifier { "." identifier } ;
-declaration   = "let" identifier "=" expression ;
+declaration   = "let" ( identifier | pattern ) "=" expression ;
 assignment    = target "=" expression ;
-target        = identifier | postfix "[" expression "]" | postfix "." identifier ;
+target        = identifier | pattern | postfix "[" expression "]"
+              | postfix "[" [ expression ] ":" [ expression ] [ ":" [ expression ] ] "]"
+              | postfix "." identifier ;
+pattern       = identifier | "[" pattern { "," pattern } [ "," ] "]"
+              | "(" pattern ")" | "(" pattern "," [ pattern { "," pattern } [ "," ] ] ")" ;
 print         = "print" "(" expression ")" ;
 conditional   = "if" expression block { "elif" expression block }
                 [ "else" block ] "end"
@@ -34,8 +38,9 @@ loop          = "repeat" expression block
               | "loop" block
               | "until" expression block
               | number "times" [ "do" ] block ;
-function      = "func" identifier "(" [ identifier { "," identifier } [ "," ] ] ")"
+function      = "func" identifier "(" [ parameter { "," parameter } [ "," ] ] ")"
                 block "end" ;
+parameter     = [ "*" ] identifier [ "=" expression ] ;
 flow          = "return" [ expression ] | "break" | "continue"
               | "exit" [ "(" [ expression ] ")" | expression ]
               | "global" identifier { "," identifier }
@@ -52,16 +57,28 @@ comparison    = additive { ("==" | "!=" | "<" | ">" | "<=" | ">=") additive } ;
 additive      = multiplicative { ("+" | "-") multiplicative } ;
 multiplicative= unary { ("*" | "/" | "%") unary } ;
 unary         = ("!" | "-") unary | postfix ;
-postfix       = primary { "[" expression "]" | "." identifier [ arguments ] } ;
+postfix       = primary { "[" expression "]"
+              | "[" [ expression ] ":" [ expression ] [ ":" [ expression ] ] "]"
+              | "." identifier [ arguments ] } ;
 primary       = number | string | boolean | "null" | identifier [ arguments ]
-              | "(" expression ")" | list | dictionary | builtin ;
-arguments     = "(" [ expression { "," expression } [ "," ] ] ")" ;
+              | "(" expression ")" | tuple | list | dictionary | builtin ;
+tuple         = "(" ")" | "(" expression "," [ expression { "," expression } [ "," ] ] ")" ;
+arguments     = "(" [ argument { "," argument } [ "," ] ] ")" ;
+argument      = identifier "=" expression | expression ;
 list          = "[" [ expression { "," expression } [ "," ] ] "]" ;
 dictionary    = "{" [ expression ":" expression { "," expression ":" expression } [ "," ] ] "}" ;
 builtin       = ("input" | "ask" | "len" | "type" | "str" | "int" | "float" | "range") arguments ;
 boolean       = "true" | "false" ;
 ```
 
-The parser evaluates comparison chains from left to right; they are not Python-style chained comparisons. Logical operators return booleans and short-circuit. Numeric equality permits integer/float comparison; other equality requires matching Mux types. Truthiness follows Python conventions for empty values, zero, `false` and `null`.
+The parser evaluates comparison chains from left to right; they are not Python-style chained comparisons. Logical operators return booleans and short-circuit. Numeric equality permits integer/float comparison; booleans are not numbers. Lists, tuples, and dictionaries compare recursively, and other equality requires matching Mux types. Truthiness is false for `null`, `false`, zero, and empty strings, lists, tuples, dictionaries, or ranges; other values are true.
 
-Functions currently take positional arguments only. Calls to variables use `name(...)`; module functions use `module.function(...)`. Statement separators are newlines, and every block closes with `end`.
+`+` accepts two numbers or two sequences of the same type (strings, lists, or tuples). `-`, `/`, and `%` accept numbers. `*` accepts two numbers or a string/list/tuple and an integer. Ordering comparisons accept two numbers or two strings. Unsupported combinations raise a Mux diagnostic instead of inheriting Python's implicit coercions. Dictionary keys retain Python's hashable-key behavior for compatibility.
+
+Functions use lexical bindings. A name assigned anywhere in a function is local throughout that function unless declared `global` or `nonlocal`; reading a local before its first assignment is an error. `nonlocal` must refer to a binding in an enclosing function. The resolver reports these errors before the program starts running.
+
+Functions accept positional and named arguments, trailing default parameters, and one final variadic parameter. For example, `func greet(name, prefix="Hola", *extras)` can be called as `greet("Ana")`, `greet(name="Ana")`, or `greet("Ana", "Buenas", 1, 2)`, where `extras` is a list. Required parameters must precede parameters with defaults and the variadic parameter; positional arguments must precede named arguments; duplicate, unknown, or missing arguments are errors. Defaults are evaluated once when the function definition executes. Native functions continue to accept positional arguments only. Calls to variables use `name(...)`; module functions use `module.function(...)`. Statement separators are newlines, and every block closes with `end`.
+
+Parentheses group expressions; a comma creates an immutable tuple, including the one-element form `(value,)` and empty form `()`.
+
+Sequence destructuring binds values after the complete pattern has been checked: `let [first, [second, third]] = values` or `let (first, second) = pair`. Assignment uses the same nested patterns without `let`. A pattern must match the sequence length exactly; lists, tuples, strings, and ranges can be unpacked. Slices use Python-style exclusive endpoints on lists, tuples, strings, and ranges, such as `items[1:4]`, `text[::-1]`, or `values[:limit:2]`. A slice can be assigned on the left side of an assignment only when the target is a list; the replacement must be a sequence, and extended slices must have the same length as the selected elements.

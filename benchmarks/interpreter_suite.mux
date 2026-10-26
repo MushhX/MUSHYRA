@@ -1,0 +1,16 @@
+# Microbenchmark para bucles, llamadas de función y crecimiento de colecciones.
+func identity(value)
+    return value
+end
+
+let total = 0
+for index in range(100000)
+    total = total + identity(index)
+end
+print(total)
+
+let values = []
+repeat 100000
+    values.append(1)
+end
+print(len(values))

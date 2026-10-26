@@ -13,10 +13,14 @@ from pathlib import Path
 
 from . import __version__
 from .formatter import format_source
-from .interpreter import Interpreter
+from .interpreter import (Interpreter, MAX_OUTPUT_BYTES,
+                          MAX_RUNTIME_ALLOCATION_BYTES)
+from .debugger import Debugger
 from .lexer import Lexer, MuxError
 from .linter import lint_ast
+from .lsp import run as run_lsp
 from .parser import Parser
+from .resolver import analyze_program
 
 
 MAX_SOURCE_BYTES = 10 * 1024 * 1024
@@ -61,11 +65,57 @@ def _argument_parser():
     parser.add_argument("--max-steps", type=int, help="Límite de pasos de ejecución")
     parser.add_argument("--max-call-depth", type=int, help="Límite de llamadas Mux anidadas")
     parser.add_argument("--sandbox-root", help="Restringe acceso a archivos y módulos a esta carpeta")
+    sandbox_options = parser.add_mutually_exclusive_group()
+    sandbox_options.add_argument("--sandbox", dest="sandbox", action="store_true",
+                                 help="Deshabilita módulos nativos externos y limita capacidades")
+    sandbox_options.add_argument("--no-sandbox", dest="sandbox", action="store_false",
+                                 help="Desactiva el modo sandbox definido en la configuración")
+    parser.set_defaults(sandbox=None)
+    parser.add_argument("--max-output-bytes", type=int, help="Presupuesto máximo de salida en UTF-8")
+    parser.add_argument("--max-allocation-bytes", type=int, help="Presupuesto estimado de asignación de valores")
+    parser.add_argument("--timeout-seconds", type=float, help="Tiempo máximo cooperativo de ejecución")
     parser.add_argument("--config", help="Archivo JSON de configuración de mux")
     parser.add_argument("--diagnostics-format", choices=("text", "json"), help="Formato de diagnósticos")
     parser.add_argument("--time", action="store_true", help="Muestra el tiempo total de ejecución")
     parser.add_argument("--debug", action="store_true", help="Muestra traceback de errores internos")
+    parser.add_argument("--debugger", action="store_true", help="Depurador Mux con paso, breakpoints y variables")
+    parser.add_argument("--lsp", action="store_true", help="Inicia el servidor de lenguaje por stdin/stdout")
     return parser
+
+
+def _init_project(argv):
+    init_parser = argparse.ArgumentParser(prog="mux init",
+                                          description="Crea un proyecto Mux mínimo")
+    init_parser.add_argument("directory", nargs="?", default="mux-project",
+                             help="Directorio nuevo o vacío donde crear el proyecto")
+    init_parser.add_argument("--name", help="Nombre mostrado en el README generado")
+    args = init_parser.parse_args(argv)
+    root = Path(args.directory).expanduser()
+    project_name = args.name or root.name or "Mux"
+    if not project_name.strip() or "\n" in project_name or "\r" in project_name:
+        init_parser.error("--name debe ser texto no vacío en una línea")
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        targets = {
+            root / "main.mux": f'# Proyecto {project_name}\nprint("Hola desde Mux")\n',
+            root / "README.md": (
+                f"# {project_name}\n\n"
+                "Ejecuta el programa principal con `mux main.mux`.\n"
+            ),
+        }
+        existing = [path.name for path in targets if path.exists()]
+        if existing:
+            raise MuxError(f"No se sobrescribieron archivos existentes: {', '.join(existing)}",
+                           str(root.resolve()))
+        for path, content in targets.items():
+            with path.open("x", encoding="utf-8", newline="\n") as stream:
+                stream.write(content)
+    except (MuxError, OSError, UnicodeError) as exc:
+        print(f"mux init: {exc}", file=sys.stderr)
+        return 1
+    print(f"Proyecto Mux creado en {root.resolve()}")
+    print(f'Ejecuta: mux "{root / "main.mux"}"')
+    return 0
 
 
 def _default_config_path():
@@ -89,7 +139,9 @@ def _load_config(filename=None):
         raise MuxError(f"No se pudo leer la configuración {str(path)!r}: {exc}") from exc
     if not isinstance(config, dict):
         raise MuxError("La configuración de mux debe ser un objeto JSON")
-    allowed = {"max_steps", "max_call_depth", "sandbox_root", "diagnostics_format", "watch_interval"}
+    allowed = {"max_steps", "max_call_depth", "sandbox_root", "sandbox",
+               "max_output_bytes", "max_allocation_bytes", "timeout_seconds",
+               "diagnostics_format", "watch_interval"}
     unknown = sorted(set(config) - allowed)
     if unknown:
         raise MuxError(f"Claves de configuración desconocidas: {', '.join(unknown)}")
@@ -100,6 +152,13 @@ def _effective_options(args, config):
     max_steps = args.max_steps if args.max_steps is not None else config.get("max_steps")
     max_call_depth = args.max_call_depth if args.max_call_depth is not None else config.get("max_call_depth", 128)
     sandbox_root = args.sandbox_root or config.get("sandbox_root")
+    sandbox_mode = args.sandbox if args.sandbox is not None else config.get("sandbox", False)
+    max_output_bytes = (args.max_output_bytes if args.max_output_bytes is not None
+                        else config.get("max_output_bytes", MAX_OUTPUT_BYTES))
+    max_allocation_bytes = (args.max_allocation_bytes if args.max_allocation_bytes is not None
+                            else config.get("max_allocation_bytes", MAX_RUNTIME_ALLOCATION_BYTES))
+    timeout_seconds = (args.timeout_seconds if args.timeout_seconds is not None
+                       else config.get("timeout_seconds"))
     diagnostics_format = args.diagnostics_format or config.get("diagnostics_format", "text")
     watch_interval = args.watch_interval if args.watch_interval is not None else config.get("watch_interval", 0.5)
     if max_steps is not None and (not isinstance(max_steps, int) or isinstance(max_steps, bool) or max_steps < 1):
@@ -113,7 +172,19 @@ def _effective_options(args, config):
         raise MuxError("diagnostics_format debe ser text o json")
     if sandbox_root is not None and (not isinstance(sandbox_root, str) or not sandbox_root.strip()):
         raise MuxError("sandbox_root debe ser una ruta de texto no vacía")
-    return max_steps, max_call_depth, sandbox_root, diagnostics_format, float(watch_interval)
+    for key, value in (("max_output_bytes", max_output_bytes),
+                       ("max_allocation_bytes", max_allocation_bytes)):
+        if value is not None and (not isinstance(value, int) or isinstance(value, bool) or value < 1):
+            raise MuxError(f"{key} debe ser un entero positivo")
+    if not isinstance(sandbox_mode, bool):
+        raise MuxError("sandbox debe ser boolean")
+    if timeout_seconds is not None and (
+            not isinstance(timeout_seconds, (int, float)) or isinstance(timeout_seconds, bool)
+            or not 0.001 <= timeout_seconds <= 86_400):
+        raise MuxError("timeout_seconds debe estar entre 0.001 y 86400")
+    return (max_steps, max_call_depth, sandbox_root, diagnostics_format,
+            float(watch_interval), sandbox_mode, max_output_bytes,
+            max_allocation_bytes, timeout_seconds)
 
 
 def _compile(source, filename):
@@ -213,12 +284,20 @@ def _save_history(readline, history):
         pass
 
 
-def _run_repl(max_steps=None, max_call_depth=256, sandbox_root=None, debug=False,
-              diagnostics_format="text"):
+def _run_repl(max_steps=None, max_call_depth=128, sandbox_root=None, debug=False,
+              diagnostics_format="text", sandbox_mode=False, max_output_bytes=MAX_OUTPUT_BYTES,
+              max_allocation_bytes=MAX_RUNTIME_ALLOCATION_BYTES, timeout_seconds=None,
+              use_debugger=False):
     print(f"Mux {__version__} — escribe :help o :quit", file=sys.stdout)
+    if sandbox_mode and sandbox_root is None:
+        sandbox_root = str(Path.cwd())
     _configure_repl_history()
     interpreter = Interpreter(max_steps=max_steps, max_call_depth=max_call_depth,
-                              allowed_root=sandbox_root)
+                              allowed_root=sandbox_root, sandbox_mode=sandbox_mode,
+                              max_output_bytes=max_output_bytes,
+                              max_allocation_bytes=max_allocation_bytes,
+                              timeout_seconds=timeout_seconds,
+                              debugger_hook=Debugger(output=sys.stderr) if use_debugger else None)
     buffer = []
     while True:
         prompt = ">>> " if not buffer else "... "
@@ -294,7 +373,9 @@ def _print_lint(diagnostics, source_path, diagnostics_format):
     return sum(item.severity == "error" for item in diagnostics)
 
 
-def _run_file(args, max_steps, max_call_depth, sandbox_root, diagnostics_format):
+def _run_file(args, max_steps, max_call_depth, sandbox_root, diagnostics_format,
+              sandbox_mode=False, max_output_bytes=MAX_OUTPUT_BYTES,
+              max_allocation_bytes=MAX_RUNTIME_ALLOCATION_BYTES, timeout_seconds=None):
     source, display_name = _read_program(args.file)
     tokens, compiled_parser, tree = _compile(source, display_name)
     if args.tokens:
@@ -329,21 +410,41 @@ def _run_file(args, max_steps, max_call_depth, sandbox_root, diagnostics_format)
         errors = _print_lint(lint_ast(tree), display_name, diagnostics_format)
         return 1 if errors else 0
     if args.check:
+        analyze_program(tree, display_name, initial_names=("args",))
         return 0
+    if sandbox_mode and args.file != "-" and sandbox_root is not None:
+        root = Path(sandbox_root).expanduser().resolve()
+        try:
+            Path(display_name).resolve().relative_to(root)
+        except ValueError as exc:
+            raise MuxError("El archivo principal queda fuera de sandbox_root", display_name) from exc
+    if sandbox_mode and sandbox_root is None:
+        sandbox_root = str(Path(display_name).parent if display_name != "<stdin>" else Path.cwd())
+    debugger_hook = Debugger(output=sys.stderr) if args.debugger else None
     interpreter = Interpreter(max_steps=max_steps, max_call_depth=max_call_depth,
                               allowed_root=sandbox_root,
-                              source_map=compiled_parser.source_map)
+                              source_map=compiled_parser.source_map,
+                              sandbox_mode=sandbox_mode,
+                              debugger_hook=debugger_hook,
+                              max_output_bytes=max_output_bytes,
+                              max_allocation_bytes=max_allocation_bytes,
+                              timeout_seconds=timeout_seconds)
     interpreter.globals["args"] = [value for value in args.script_args if value != "--"]
     started = time.perf_counter()
     exit_code = interpreter.run(tree, display_name)
     if args.time:
-        print(f"Mux: {time.perf_counter() - started:.6f} s", file=sys.stderr)
+        elapsed = time.perf_counter() - started
+        rate = interpreter.steps / elapsed if elapsed else 0.0
+        print(f"Mux: {elapsed:.6f} s; {interpreter.steps} pasos; {rate:.0f} pasos/s",
+              file=sys.stderr)
     return exit_code if exit_code is not None else 0
 
 
 def main(argv=None):
     parser = _argument_parser()
     raw_argv = list(sys.argv[1:] if argv is None else argv)
+    if raw_argv and raw_argv[0] == "init":
+        return _init_project(raw_argv[1:])
     explicit_script_args = []
     if "--" in raw_argv:
         separator = raw_argv.index("--")
@@ -351,13 +452,18 @@ def main(argv=None):
         raw_argv = raw_argv[:separator]
     args = parser.parse_args(raw_argv)
     args.script_args.extend(explicit_script_args)
+    if args.lsp:
+        return run_lsp()
     config = {}
     diagnostics_format = args.diagnostics_format or "text"
     try:
         config = _load_config(args.config)
-        max_steps, max_call_depth, sandbox_root, diagnostics_format, watch_interval = _effective_options(args, config)
+        (max_steps, max_call_depth, sandbox_root, diagnostics_format, watch_interval,
+         sandbox_mode, max_output_bytes, max_allocation_bytes, timeout_seconds) = _effective_options(args, config)
         if args.repl:
-            return _run_repl(max_steps, max_call_depth, sandbox_root, args.debug, diagnostics_format)
+            return _run_repl(max_steps, max_call_depth, sandbox_root, args.debug, diagnostics_format,
+                             sandbox_mode, max_output_bytes, max_allocation_bytes, timeout_seconds,
+                             args.debugger)
         if not args.file:
             parser.error("indica un archivo o usa --repl")
         if args.watch and args.file == "-":
@@ -374,7 +480,9 @@ def main(argv=None):
                             previous = fingerprint
                             print(f"\nMux: ejecutando {target}", file=sys.stderr)
                             try:
-                                result = _run_file(args, max_steps, max_call_depth, sandbox_root, diagnostics_format)
+                                result = _run_file(args, max_steps, max_call_depth, sandbox_root,
+                                                   diagnostics_format, sandbox_mode, max_output_bytes,
+                                                   max_allocation_bytes, timeout_seconds)
                                 if result:
                                     print(f"Mux: código de salida {result}", file=sys.stderr)
                             except MuxError as exc:
@@ -384,7 +492,8 @@ def main(argv=None):
                         time.sleep(watch_interval)
             except KeyboardInterrupt:
                 return 130
-        return _run_file(args, max_steps, max_call_depth, sandbox_root, diagnostics_format)
+        return _run_file(args, max_steps, max_call_depth, sandbox_root, diagnostics_format,
+                         sandbox_mode, max_output_bytes, max_allocation_bytes, timeout_seconds)
     except MuxError as exc:
         diagnostic_format = getattr(args, "diagnostics_format", None) or config.get("diagnostics_format", "text")
         _show_error(exc, "", args.file or "<stdin>", args.debug,

@@ -1,9 +1,10 @@
 # Benchmarks
 
-`sum_100k.mux` is a small, stable workload for comparing interpreter changes:
+Los microbenchmarks permiten comparar cambios del intérprete:
 
 ```console
 mux --time benchmarks/sum_100k.mux
+mux --time benchmarks/interpreter_suite.mux
 ```
 
-It prints the expected sum and reports elapsed interpreter time to stderr. Run it several times on the same machine, compare medians, and record the Mux version, OS, and Python runtime used to host Mux. This is a smoke workload, not a substitute for profiling a representative application; it does not measure peak memory.
+El primer archivo mide una suma; el segundo recorre bucles, llamadas y crecimiento de listas. La salida informa duración, pasos y pasos por segundo. Ejecuta cada comando varias veces en la misma máquina y compara medianas; registra versión de Mux, sistema operativo y runtime anfitrión. Son cargas pequeñas, no sustituyen el perfilado de una aplicación real ni miden el pico de memoria.

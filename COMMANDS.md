@@ -4,7 +4,9 @@
 
 ```console
 python -m pip install .
+mux init mi-proyecto
 mux --version
+mux mi-proyecto/main.mux
 mux examples/hola_mundo.mux
 ```
 
@@ -22,11 +24,21 @@ mux --tokens programa.mux
 mux --ast programa.mux
 mux --max-steps 10000 programa.mux
 mux --max-call-depth 96 programa.mux
+mux --max-output-bytes 1048576 programa.mux
+mux --timeout-seconds 15 programa.mux
+mux --sandbox --sandbox-root ./proyecto programa.mux
+mux --debugger programa.mux
+mux --lsp
+mux --time benchmarks/interpreter_suite.mux
 mux programa.mux -- valor
 mux --debug programa.mux
 mux --repl
 mux -
 ```
+
+El depurador empieza detenido en la primera declaración. Usa `step`, `continue`, `break <línea>`, `vars`, `bt` y `quit` en el prompt `mux-debug>`. `--debug` sigue mostrando tracebacks internos; `--debugger` controla la ejecución Mux.
+
+`mux --lsp` inicia el servidor de lenguaje por stdin/stdout para editores. La extensión de VS Code en `editors/vscode` lo usa para diagnósticos, autocompletado, ir a definición, referencias y símbolos del documento.
 
 `mux -` lee el fuente desde stdin. En PowerShell, por ejemplo, `Get-Content programa.mux -Raw | mux -`.
 
@@ -60,6 +72,10 @@ python -m pip install ".[telegram]"
 python -m pip install ".[whatsapp]"
 python -m pip install ".[crypto]"
 ```
+
+## Autocompletado del shell
+
+Carga `editors/completions/mux.bash` desde tu perfil de Bash o ejecuta `. editors/completions/mux.ps1` desde tu perfil de PowerShell para completar opciones y rutas.
 
 ## Empaquetar
 

@@ -1,16 +1,34 @@
 {
   "name": "mux-language-support",
   "displayName": "Mux Language Support",
-  "description": "Syntax highlighting, brackets and snippets for Mux programs",
-  "version": "1.2.0",
+  "description": "Syntax highlighting and language-server features for Mux programs",
+  "version": "1.3.0",
   "publisher": "mushhx",
+  "main": "./extension.js",
   "engines": {
     "vscode": "^1.80.0"
   },
   "categories": [
     "Programming Languages"
   ],
+  "activationEvents": ["onLanguage:mux"],
   "contributes": {
+    "configuration": {
+      "title": "Mux",
+      "properties": {
+        "mux.serverPath": {
+          "type": "string",
+          "default": "mux",
+          "description": "Ruta al ejecutable de Mux que inicia el servidor de lenguaje."
+        },
+        "mux.serverArgs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["--lsp"],
+          "description": "Argumentos usados para iniciar el servidor de lenguaje."
+        }
+      }
+    },
     "languages": [
       {
         "id": "mux",

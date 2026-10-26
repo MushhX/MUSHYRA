@@ -48,13 +48,17 @@ mux --repl                    # Abre el REPL
 type programa.mux | mux -      # Lee el programa desde stdin en Windows
 ```
 
-Los errores muestran archivo, línea y columna; `--diagnostics-format json` produce diagnósticos legibles por herramientas. Los límites de ejecución y de llamadas protegen frente a bucles o recursión accidentales. La configuración opcional está en `MUX_CONFIG` o en el directorio de configuración del usuario.
+Los errores muestran archivo, línea y columna, y las trazas incluyen ubicación de llamada y definición. El resolver valida ámbitos antes de ejecutar; el depurador `--debugger` ofrece paso, breakpoints, variables y pila. Presupuestos de pasos, salida, asignaciones estimadas y tiempo ayudan a contener programas accidentales. `--sandbox` restringe módulos y capacidades; no sustituye aislamiento del sistema operativo.
+
+Para usar diagnósticos y navegación en VS Code, instala Mux y abre `editors/vscode` como extensión de desarrollo. El servidor integrado se inicia con `mux --lsp`; no requiere dependencias de terceros.
+
+Empieza un proyecto con `mux init mi-proyecto` y ejecútalo con `mux mi-proyecto/main.mux`.
 
 Consulta [CONFIGURATION.md](CONFIGURATION.md) para las claves y prioridades.
 
 ## Módulos estándar
 
-Los módulos estándar son implementaciones nativas del intérprete; no devuelven datos simulados. Incluyen `math`, `random`, `http`, `filesystem`, `json`, `crypto`, `regex`, `strings`, `time`, `database` (SQLite), `email` (SMTP), `console`, `env`, `web` (Flask), `discord_bot`, `telegram_bot` y `whatsapp` (Twilio). Flask, los SDK de bots, Twilio y `cryptography` son dependencias opcionales. Consulta [STDLIB_REFERENCE.md](STDLIB_REFERENCE.md) para firmas, límites y configuración.
+Los módulos estándar son implementaciones nativas del intérprete; no devuelven datos simulados. Incluyen `math`, `random`, `sequence`, `http`, `filesystem`, `json`, `crypto`, `regex`, `strings`, `time`, `database` (SQLite), `email` (SMTP), `console`, `env`, `web` (Flask), `discord_bot`, `telegram_bot` y `whatsapp` (Twilio). Flask, los SDK de bots, Twilio y `cryptography` son dependencias opcionales. Consulta [STDLIB_REFERENCE.md](STDLIB_REFERENCE.md) para firmas, límites y configuración.
 
 ## Paquetes Mux
 

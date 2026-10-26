@@ -33,7 +33,10 @@ def _walk(value):
 def lint_ast(tree):
     diagnostics = []
     all_nodes = list(_walk(tree))
-    used_names = {node[1] for node in all_nodes if node[0] == "var" and len(node) > 1}
+    used_names = {
+        node[1] for node in all_nodes
+        if node[0] in ("var", "call") and len(node) > 1
+    }
 
     for node in all_nodes:
         if node[0] == "dict":
@@ -81,29 +84,41 @@ def lint_ast(tree):
     def bindings(statements, parameters=()):
         declared = set(parameters)
         imported = set()
+        for name in parameters:
+            declaration_spans.setdefault(name, None)
 
         def scan(block):
             for statement in block:
                 kind = statement[0]
                 if kind in ("let", "assign", "func"):
                     declared.add(statement[1])
+                    declaration_spans.setdefault(statement[1], getattr(statement, "span", None))
                     if kind == "func":
-                        declared.update(statement[2])
+                        for parameter in statement[2]:
+                            declared.add(parameter)
+                            declaration_spans.setdefault(parameter, getattr(statement, "span", None))
                         scan(statement[3])
+                elif kind in ("destructure_let", "destructure_assign"):
+                    for name in pattern_names(statement[1]):
+                        declared.add(name)
+                        declaration_spans.setdefault(name, getattr(statement, "span", None))
                 elif kind in ("import",):
                     _kind, module, alias = statement
                     if alias:
                         declared.add(alias)
                         imported.add(alias)
+                        declaration_spans.setdefault(alias, getattr(statement, "span", None))
                 elif kind == "from_import":
                     for name, alias in statement[2]:
                         target = alias or name
                         declared.add(target)
                         imported.add(target)
+                        declaration_spans.setdefault(target, getattr(statement, "span", None))
                 elif kind in ("global", "nonlocal"):
                     declared.update(statement[1])
                 elif kind in ("for", "each"):
                     declared.add(statement[1])
+                    declaration_spans.setdefault(statement[1], getattr(statement, "span", None))
                     scan(statement[3])
                 elif kind == "if":
                     scan(statement[2])
@@ -116,6 +131,15 @@ def lint_ast(tree):
         scan(statements)
         return declared, imported
 
+    declaration_spans = {}
+
+    def pattern_names(pattern):
+        if pattern[0] == "pattern_name":
+            yield pattern[1]
+        elif pattern[0] == "pattern_list":
+            for child in pattern[1]:
+                yield from pattern_names(child)
+
     declared, imported = bindings(tree)
     declared.add("args")
     if not any(node[0] == "import" and not node[2] for node in all_nodes):
@@ -127,7 +151,9 @@ def lint_ast(tree):
                 ))
     for name in sorted(declared - used_names):
         if name in imported:
-            diagnostics.append(LintDiagnostic("MUX103", f"Importación no usada: {name!r}"))
+            diagnostics.append(LintDiagnostic("MUX103", f"Importación no usada: {name!r}",
+                                               span=declaration_spans.get(name)))
         elif name not in {"args"}:
-            diagnostics.append(LintDiagnostic("MUX104", f"Variable no usada: {name!r}"))
+            diagnostics.append(LintDiagnostic("MUX104", f"Variable no usada: {name!r}",
+                                               span=declaration_spans.get(name)))
     return diagnostics

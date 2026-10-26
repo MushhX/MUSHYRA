@@ -5,7 +5,14 @@
 ### Añadido
 
 - AST con spans, errores JSON, linter, formatter, watch mode, configuración de usuario e historial del REPL.
-- Presupuestos de pasos y llamadas, cancelación cooperativa, límites de recursos y controles de rutas.
+- Resolución léxica anticipada, semántica explícita de valores, trazas con ubicación de llamada y definición, y depurador por línea.
+- Presupuestos de pasos, llamadas, salida y asignaciones estimadas; plazos cooperativos, sandbox de capacidades y caché acotada de AST importados.
+- Servidor LSP integrado para VS Code con diagnósticos, finalización, navegación y símbolos del documento.
+- Comando `mux init` para generar un proyecto mínimo sin reemplazar archivos existentes.
+- Parámetros por defecto, argumentos con nombre y argumentos variádicos en funciones Mux.
+- Tuplas inmutables, desempaquetado con patrones anidados y slices de secuencias, incluido el reemplazo de slices en listas.
+- Módulo `sequence` con `map`, `filter`, `enumerate`, `zip`, `any`, `all` y `sum`, con callbacks Mux y límites de pasos y memoria.
+- Benchmark para bucles, llamadas y colecciones; `--time` informa pasos y rendimiento observado.
 - Paquetes firmados Ed25519, índices configurables, hash por archivo, creación de ZIP, lockfiles y auditoría.
 - EBNF, guía de seguridad, referencia ampliada, benchmark, soporte de VS Code y CI multiplataforma.
 
@@ -19,3 +26,4 @@
 - HTTP/ZIP se limita a hosts públicos, valida redirecciones y acota tamaños.
 - Los manifiestos remotos firmados vinculan hashes de los archivos publicados.
 - SQLite bajo `--sandbox-root` bloquea instrucciones que pueden abrir rutas externas.
+- El modo `--sandbox` bloquea red, correo, entorno y módulos de bots; se documenta que no sustituye el aislamiento del sistema operativo.
