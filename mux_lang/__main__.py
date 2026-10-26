@@ -1,4 +1,4 @@
-"""Run Mux with ``python -m mux_lang``."""
+"""Run MUSHYRA with ``python -m mux_lang``."""
 
 from .cli import main
 

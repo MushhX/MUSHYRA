@@ -32,9 +32,9 @@ def build_installer():
     if sys.maxsize <= 2 ** 32:
         print("Compila el instalador con Python de 64 bits", file=sys.stderr)
         return 1
-    executable = ROOT / "dist" / "mux.exe"
+    executable = ROOT / "dist" / "myr.exe"
     if not executable.is_file():
-        print("No existe dist/mux.exe; ejecuta primero python build_exe.py", file=sys.stderr)
+        print("No existe dist/myr.exe; ejecuta primero python build_exe.py", file=sys.stderr)
         return 1
     compiler = find_inno_setup()
     if compiler is None:
@@ -74,7 +74,7 @@ def build_installer():
         return 1
     if result.returncode:
         return result.returncode
-    artifact = output_dir / f"mux-setup-{__version__}.exe"
+    artifact = output_dir / f"mushyra-setup-{__version__}.exe"
     if not artifact.is_file():
         print(f"Inno Setup terminó sin crear {artifact}", file=sys.stderr)
         return 1

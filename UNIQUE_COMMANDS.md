@@ -1,7 +1,7 @@
-# Comandos Únicos de Mux
+# Comandos Únicos de MUSHYRA
 **Creador: MushhX**
 
-Mux incluye comandos únicos que hacen la programación más expresiva y natural.
+MUSHYRA incluye comandos únicos que hacen la programación más expresiva y natural.
 
 ## 📋 Índice
 
@@ -334,7 +334,7 @@ let resultado2 = dividir(10, 0)
 
 ## 📊 Comparación con Otros Lenguajes
 
-| Mux | Python | JavaScript | Ruby |
+| MUSHYRA | Python | JavaScript | Ruby |
 |-----|--------|------------|------|
 | `show()` | `print()` | `console.log()` | `puts` |
 | `say()` | `print()` | `console.log()` | `puts` |
@@ -350,7 +350,7 @@ let resultado2 = dividir(10, 0)
 
 ## 🎨 Filosofía de Diseño
 
-Los comandos únicos de Mux están diseñados para:
+Los comandos únicos de MUSHYRA están diseñados para:
 
 1. **Expresividad**: Código más natural y legible
 2. **Feedback Visual**: Emojis para mejor UX

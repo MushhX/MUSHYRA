@@ -1,8 +1,8 @@
 {
   "name": "mux-language-support",
-  "displayName": "Mux Language Support",
-  "description": "Syntax highlighting and language-server features for Mux programs",
-  "version": "1.3.0",
+  "displayName": "MUSHYRA Language Support",
+  "description": "Syntax highlighting and language-server features for MUSHYRA programs",
+  "version": "2.0.0",
   "publisher": "mushhx",
   "main": "./extension.js",
   "engines": {
@@ -14,12 +14,23 @@
   "activationEvents": ["onLanguage:mux"],
   "contributes": {
     "configuration": {
-      "title": "Mux",
+      "title": "MUSHYRA",
       "properties": {
+        "myr.serverPath": {
+          "type": "string",
+          "default": "myr",
+          "description": "Path to the MUSHYRA executable that starts the language server."
+        },
+        "myr.serverArgs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["--lsp"],
+          "description": "Arguments used to start the language server."
+        },
         "mux.serverPath": {
           "type": "string",
           "default": "mux",
-          "description": "Ruta al ejecutable de Mux que inicia el servidor de lenguaje."
+          "description": "Ruta al ejecutable heredado de Mux que inicia el servidor de lenguaje."
         },
         "mux.serverArgs": {
           "type": "array",
@@ -32,8 +43,8 @@
     "languages": [
       {
         "id": "mux",
-        "aliases": ["Mux", "mux"],
-        "extensions": [".mux"],
+        "aliases": ["MUSHYRA", "myr", "Mux", "mux"],
+        "extensions": [".myr", ".mux"],
         "configuration": "./language-configuration.json"
       }
     ],

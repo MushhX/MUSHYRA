@@ -1,4 +1,4 @@
-# Especificación del lenguaje Mux
+# Especificación del lenguaje MUSHYRA
 
 Esta referencia describe la sintaxis que implementa el parser. Las columnas de los diagnósticos cuentan puntos de código Unicode; las tabulaciones ocupan una columna de origen y se expanden al presentar el cursor en la terminal. Los finales CRLF y CR se normalizan a LF antes de tokenizar.
 
@@ -75,9 +75,9 @@ builtin       = ("input" | "ask" | "len" | "type" | "str" | "int" | "float" | "r
 boolean       = "true" | "false" ;
 ```
 
-The parser evaluates comparison chains from left to right; they are not Python-style chained comparisons. Logical operators return booleans and short-circuit. Numeric equality permits integer/float comparison; booleans are not numbers. Lists, tuples, and dictionaries compare recursively, and other equality requires matching Mux types. Truthiness is false for `null`, `false`, zero, and empty strings, lists, tuples, dictionaries, or ranges; other values are true.
+The parser evaluates comparison chains from left to right; they are not Python-style chained comparisons. Logical operators return booleans and short-circuit. Numeric equality permits integer/float comparison; booleans are not numbers. Lists, tuples, and dictionaries compare recursively, and other equality requires matching MUSHYRA types. Truthiness is false for `null`, `false`, zero, and empty strings, lists, tuples, dictionaries, or ranges; other values are true.
 
-`+` accepts two numbers or two sequences of the same type (strings, lists, or tuples). `-`, `/`, and `%` accept numbers. `*` accepts two numbers or a string/list/tuple and an integer. Ordering comparisons accept two numbers or two strings. Unsupported combinations raise a Mux diagnostic instead of inheriting Python's implicit coercions. Dictionary keys retain Python's hashable-key behavior for compatibility.
+`+` accepts two numbers or two sequences of the same type (strings, lists, or tuples). `-`, `/`, and `%` accept numbers. `*` accepts two numbers or a string/list/tuple and an integer. Ordering comparisons accept two numbers or two strings. Unsupported combinations raise a MUSHYRA diagnostic instead of inheriting Python's implicit coercions. Dictionary keys retain Python's hashable-key behavior for compatibility.
 
 Functions use lexical bindings. A name assigned anywhere in a function is local throughout that function unless declared `global` or `nonlocal`; reading a local before its first assignment is an error. `nonlocal` must refer to a binding in an enclosing function. The resolver reports these errors before the program starts running.
 

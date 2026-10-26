@@ -1,6 +1,6 @@
-# Diagnósticos Mux
+# Diagnósticos MUSHYRA
 
-Los errores de `mux` y los diagnósticos LSP incluyen un código estable. El texto del mensaje puede aclararse entre versiones; el código identifica la categoría del problema.
+Los errores de `myr` y los diagnósticos LSP incluyen un código estable. El texto del mensaje puede aclararse entre versiones; el código identifica la categoría del problema.
 
 | Código | Categoría |
 | --- | --- |
@@ -11,4 +11,4 @@ Los errores de `mux` y los diagnósticos LSP incluyen un código estable. El tex
 | `MUX100`–`MUX104` | Advertencias del linter: claves duplicadas, código inalcanzable, nombres no declarados e imports o variables no usados |
 | `MUX000` | Error genérico de una herramienta o integración que aún no asigna una categoría propia |
 
-`mux --diagnostics-format json` devuelve el código junto con mensaje, ruta, línea, columna y contexto. El servidor LSP comunica el mismo código en cada diagnóstico.
+`myr --diagnostics-format json` devuelve el código junto con mensaje, ruta, línea, columna y contexto. El servidor LSP comunica el mismo código en cada diagnóstico.

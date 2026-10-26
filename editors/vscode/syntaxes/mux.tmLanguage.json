@@ -1,6 +1,6 @@
 {
   "scopeName": "source.mux",
-  "name": "Mux",
+  "name": "MUSHYRA",
   "patterns": [
     {"include": "#comments"},
     {"include": "#strings"},

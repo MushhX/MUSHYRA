@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mux-lang"
+name = "mushyra"
 dynamic = ["version"]
-description = "Intérprete y herramientas para el lenguaje Mux"
+description = "Intérprete y herramientas para MUSHYRA"
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
@@ -30,7 +30,9 @@ Repository = "https://github.com/MushhX/Mux"
 Issues = "https://github.com/MushhX/Mux/issues"
 
 [project.scripts]
+myr = "mux_lang.cli:main"
 mux = "mux_lang.cli:main"
+myr-pkg = "mux_lang.package_manager:main"
 mux-pkg = "mux_lang.package_manager:main"
 
 [project.optional-dependencies]

@@ -1,6 +1,7 @@
-"""Build a standalone Mux executable for the current operating system."""
+"""Build a standalone MUSHYRA executable for the current operating system."""
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -28,10 +29,10 @@ def build_executable():
     spec_dir.mkdir(parents=True, exist_ok=True)
     command = [
         sys.executable, "-m", "PyInstaller", "--onefile", "--noconfirm", "--clean",
-        "--name", "mux", "--distpath", str(output_dir), "--workpath", str(work_dir),
+        "--name", "myr", "--distpath", str(output_dir), "--workpath", str(work_dir),
         "--specpath", str(spec_dir), str(ENTRYPOINT),
     ]
-    print("Compilando Mux para la plataforma actual...")
+    print("Compilando MUSHYRA para la plataforma actual...")
     try:
         result = subprocess.run(command, cwd=str(ROOT), check=False)
     except OSError as exc:
@@ -41,11 +42,14 @@ def build_executable():
         return result.returncode
 
     suffix = ".exe" if os.name == "nt" else ""
-    artifact = output_dir / f"mux{suffix}"
+    artifact = output_dir / f"myr{suffix}"
     if not artifact.is_file():
         print(f"PyInstaller terminó sin crear {artifact}", file=sys.stderr)
         return 1
+    legacy_artifact = output_dir / f"mux{suffix}"
+    shutil.copy2(artifact, legacy_artifact)
     print(f"Ejecutable creado: {artifact}")
+    print(f"Alias de compatibilidad creado: {legacy_artifact}")
     return 0
 
 

@@ -1,5 +1,13 @@
 # Cambios
 
+## [2.0.0] - 2026-10-26
+
+### Renombrado
+
+- El lenguaje y sus herramientas pasan a llamarse MUSHYRA. `myr` y `myr-pkg` son los comandos principales; `mux` y `mux-pkg` siguen como alias compatibles.
+- `.myr` pasa a ser la extensión principal. Se siguen leyendo archivos `.mux`, configuraciones anteriores y paquetes con entradas `.mux`.
+- El paquete de instalación se llama `mushyra`; el módulo Python `mux_lang` y el repositorio conservan sus rutas para no romper imports ni enlaces existentes.
+
 ## [1.2.0] - 2026-10-26
 
 ### Añadido

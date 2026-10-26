@@ -1,4 +1,4 @@
-# Obtener Mux
+# Obtener MUSHYRA
 
 El repositorio no versiona binarios precompilados ni hashes verificados de una release. Para obtener una copia ejecutable, compílala localmente.
 

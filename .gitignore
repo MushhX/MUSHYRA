@@ -9,6 +9,7 @@ develop-eggs/
 dist/
 installer_output/
 mux-portable-*.zip
+mushyra-portable-*.zip
 downloads/
 eggs/
 .eggs/

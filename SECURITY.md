@@ -1,10 +1,10 @@
 # Modelo de seguridad
 
-Mux está diseñado para ejecutar programas locales de confianza. El intérprete no es una máquina virtual aislada para ejecutar código hostil: las funciones nativas permiten acceder al sistema de archivos, a SQLite y a la red.
+MUSHYRA está diseñado para ejecutar programas locales de confianza. El intérprete no es una máquina virtual aislada para ejecutar código hostil: las funciones nativas permiten acceder al sistema de archivos, a SQLite y a la red.
 
 ## Controles disponibles
 
-- `mux --sandbox-root DIR archivo.mux` restringe rutas de `filesystem`, `json`, `database`, adjuntos e imports locales a `DIR`. En modo estricto, usa `mux --sandbox --sandbox-root DIR archivo.mux`; se permite una lista reducida de módulos nativos y se bloquean red, correo, entorno y bots.
+- `myr --sandbox-root DIR archivo.myr` restringe rutas de `filesystem`, `json`, `database`, adjuntos e imports locales a `DIR`. En modo estricto, usa `myr --sandbox --sandbox-root DIR archivo.myr`; se permite una lista reducida de módulos nativos y se bloquean red, correo, entorno y bots.
 - Si se omite `--sandbox-root` junto a `--sandbox`, el directorio del programa (o el directorio actual para stdin/REPL) se convierte en raíz permitida. `--sandbox-root` por sí solo conserva el comportamiento anterior: restringe rutas e imports, pero no deshabilita módulos de red.
 - El modo estricto permite `math`, `random`, `sequence`, `path`, `csv`, `toml`, `strings`, `json`, `regex`, `time`, `console`, `filesystem` y `database`; las operaciones de `csv` y `toml` pasan por el control de rutas del intérprete.
 - El modo sandbox es una política del intérprete, no una frontera de aislamiento del sistema operativo. Las rutas se resuelven antes de operar; un proceso hostil concurrente podría cambiar enlaces simbólicos entre la comprobación y la operación. Usa una cuenta o contenedor del sistema operativo para ejecutar código hostil.
@@ -16,7 +16,7 @@ Mux está diseñado para ejecutar programas locales de confianza. El intérprete
 
 ## Secretos y criptografía
 
-No guardes tokens ni contraseñas en archivos `.mux`, ejemplos, historial del REPL o repositorios. Usa variables de entorno y `env.require`. `crypto.password_hash` usa scrypt; `hash_md5` se conserva por compatibilidad y no sirve para almacenar contraseñas. `crypto.encrypt` usa AES-GCM y deriva una clave mediante PBKDF2.
+No guardes tokens ni contraseñas en archivos `.myr`, ejemplos, historial del REPL o repositorios. Usa variables de entorno y `env.require`. `crypto.password_hash` usa scrypt; `hash_md5` se conserva por compatibilidad y no sirve para almacenar contraseñas. `crypto.encrypt` usa AES-GCM y deriva una clave mediante PBKDF2.
 
 ## Publicación de paquetes
 

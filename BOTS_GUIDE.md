@@ -1,6 +1,6 @@
 # Bots e integraciones externas
 
-Los módulos conectan con servicios reales. Instala el extra correspondiente y guarda los tokens en variables de entorno; no los escribas en el archivo `.mux` ni los subas al repositorio.
+Los módulos conectan con servicios reales. Instala el extra correspondiente y guarda los tokens en variables de entorno; no los escribas en el archivo `.myr` ni los subas al repositorio.
 
 Desde el checkout, por ejemplo:
 
@@ -10,16 +10,16 @@ python -m pip install ".[discord,telegram,whatsapp]"
 
 ## Discord
 
-Crea una aplicación y un bot en el [portal de desarrolladores de Discord](https://discord.com/developers/applications), y configura la variable `MUX_DISCORD_TOKEN`.
+Crea una aplicación y un bot en el [portal de desarrolladores de Discord](https://discord.com/developers/applications), y configura la variable `MYR_DISCORD_TOKEN`.
 
-```mux
+```myr
 import env
 import discord_bot
 
-let bot = discord_bot.crear_bot(env.require("MUX_DISCORD_TOKEN"))
+let bot = discord_bot.crear_bot(env.require("MYR_DISCORD_TOKEN"))
 
 func saludar()
-    return "¡Hola desde Mux!"
+    return "¡Hola desde MUSHYRA!"
 end
 
 discord_bot.comando(bot, "hola", saludar)
@@ -30,13 +30,13 @@ Los comandos usan el prefijo `!`. El handler no recibe argumentos; su valor de r
 
 ## Telegram
 
-Crea un bot con [BotFather](https://t.me/BotFather) y define `MUX_TELEGRAM_TOKEN`.
+Crea un bot con [BotFather](https://t.me/BotFather) y define `MYR_TELEGRAM_TOKEN`.
 
-```mux
+```myr
 import env
 import telegram_bot
 
-let bot = telegram_bot.crear_bot(env.require("MUX_TELEGRAM_TOKEN"))
+let bot = telegram_bot.crear_bot(env.require("MYR_TELEGRAM_TOKEN"))
 
 func iniciar()
     return "¡Bienvenido!"
@@ -50,14 +50,14 @@ El nombre del comando se pasa sin `/`. El handler no recibe argumentos y su valo
 
 ## WhatsApp saliente con Twilio
 
-Configura las credenciales `MUX_TWILIO_ACCOUNT_SID` y `MUX_TWILIO_AUTH_TOKEN`; `MUX_TWILIO_WHATSAPP_FROM` puede elegir el remitente. Después instala el extra `whatsapp` y ejecuta:
+Configura las credenciales `MYR_TWILIO_ACCOUNT_SID` y `MYR_TWILIO_AUTH_TOKEN`; `MYR_TWILIO_WHATSAPP_FROM` puede elegir el remitente. Después instala el extra `whatsapp` y ejecuta:
 
-```mux
+```myr
 import env
 import whatsapp
 
-let destino = env.require("MUX_WHATSAPP_TO")
-let resultado = whatsapp.send(destino, "Mensaje enviado desde Mux")
+let destino = env.require("MYR_WHATSAPP_TO")
+let resultado = whatsapp.send(destino, "Mensaje enviado desde MUSHYRA")
 print(resultado["status"])
 ```
 
@@ -65,6 +65,6 @@ Este módulo envía mensajes mediante Twilio; no recibe mensajes entrantes ni co
 
 ## Ejecución y secretos
 
-En PowerShell, define una variable para la sesión con `$env:MUX_DISCORD_TOKEN = "..."`; en macOS/Linux usa `export MUX_DISCORD_TOKEN="..."`. Luego ejecuta `mux mi_bot.mux` en esa misma terminal.
+En PowerShell, define una variable para la sesión con `$env:MYR_DISCORD_TOKEN = "..."`; en macOS/Linux usa `export MYR_DISCORD_TOKEN="..."`. Luego ejecuta `myr mi_bot.myr` en esa misma terminal. Los programas existentes pueden seguir usando sus nombres `MUX_*` mientras sus fuentes los referencien.
 
 No publiques tokens, contraseñas, datos personales ni logs que los contengan. Revoca y rota cualquier credencial que se haya compartido por error. Los servicios aplican sus propios límites de uso y condiciones.

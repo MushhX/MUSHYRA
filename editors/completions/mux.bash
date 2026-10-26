@@ -21,4 +21,4 @@ _mux_complete() {
         while IFS= read -r completion; do COMPREPLY+=("$completion"); done < <(compgen -f -- "$current")
     fi
 }
-complete -F _mux_complete mux
+complete -F _mux_complete myr mux

@@ -1387,12 +1387,16 @@ class Interpreter:
         parts = module.split(".")
         relative = Path(*parts)
         candidates = [
+            Path(self.current_dir) / relative.with_suffix(".myr"),
+            Path(self.current_dir) / relative / (parts[-1] + ".myr"),
             Path(self.current_dir) / relative.with_suffix(".mux"),
             Path(self.current_dir) / relative / (parts[-1] + ".mux"),
         ]
         try:
             from .package_manager import PACKAGES_DIR
             candidates.extend([
+                PACKAGES_DIR / relative.with_suffix(".myr"),
+                PACKAGES_DIR / relative / (parts[-1] + ".myr"),
                 PACKAGES_DIR / relative.with_suffix(".mux"),
                 PACKAGES_DIR / relative / (parts[-1] + ".mux"),
             ])

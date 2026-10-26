@@ -17,7 +17,7 @@ python build_exe.py
 python build_installer.py
 ```
 
-El primer comando crea `dist/mux.exe`. El segundo prepara el icono si falta, sustituye las rutas y versión en `installer.iss` y crea `installer_output/mux-setup-<versión>.exe`.
+El primer comando crea `dist/myr.exe`. El segundo prepara el icono si falta, sustituye las rutas y versión en `installer.iss` y crea `installer_output/mushyra-setup-<versión>.exe`.
 
 ## Contenido y opciones
 

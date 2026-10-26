@@ -1,11 +1,11 @@
-; Script de Inno Setup para Mux Programming Language
+; Script de Inno Setup para MUSHYRA
 ; Creador: MushhX
 
-#define MyAppName "Mux Programming Language"
+#define MyAppName "MUSHYRA"
 #define MyAppVersion "@MUX_VERSION@"
 #define MyAppPublisher "MushhX"
 #define MyAppURL "https://github.com/mushhx/mux"
-#define MyAppExeName "mux.exe"
+#define MyAppExeName "myr.exe"
 
 [Setup]
 ; Información de la aplicación
@@ -17,13 +17,13 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/issues
 AppUpdatesURL={#MyAppURL}/releases
-DefaultDirName={localappdata}\Programs\Mux
-DefaultGroupName=Mux Programming Language
+DefaultDirName={localappdata}\Programs\MUSHYRA
+DefaultGroupName=MUSHYRA
 AllowNoIcons=yes
 LicenseFile=@MUX_ROOT@\LICENSE
 InfoBeforeFile=@MUX_ROOT@\INSTALL.md
 OutputDir=@MUX_OUTPUT_DIR@
-OutputBaseFilename=mux-setup-{#MyAppVersion}
+OutputBaseFilename=mushyra-setup-{#MyAppVersion}
 SetupIconFile=@MUX_ROOT@\mux_icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -40,10 +40,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "addtopath"; Description: "Agregar Mux al PATH del usuario"; GroupDescription: "Opciones del sistema:"; Flags: unchecked
+Name: "addtopath"; Description: "Agregar MUSHYRA al PATH del usuario"; GroupDescription: "Opciones del sistema:"; Flags: unchecked
 
 [Files]
 ; Ejecutable principal
+Source: "@MUX_ROOT@\dist\myr.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "@MUX_ROOT@\dist\mux.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Ejemplos
@@ -60,11 +61,11 @@ Source: "@MUX_ROOT@\BOTS_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "@MUX_ROOT@\EXECUTABLE_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\Mux Programming Language"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\MUSHYRA"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\Ejemplos"; Filename: "{app}\examples"
 Name: "{group}\Documentación"; Filename: "{app}\README.md"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\Mux"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autodesktop}\MUSHYRA"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\README.md"; Description: "Ver documentación"; Flags: postinstall shellexec skipifsilent unchecked
@@ -140,7 +141,7 @@ begin
   begin
     // Crear archivo de versión
     SaveStringToFile(ExpandConstant('{app}\VERSION.txt'), 
-      'Mux Programming Language' + #13#10 +
+      'MUSHYRA' + #13#10 +
       'Version: {#MyAppVersion}' + #13#10 +
       'Build Date: ' + GetDateTimeString('yyyy-mm-dd', '-', ':') + #13#10 +
       'Platform: Windows x64' + #13#10 +
@@ -178,6 +179,6 @@ end;
 
 [Messages]
 WelcomeLabel1=Bienvenido al Asistente de Instalación de [name]
-WelcomeLabel2=Este programa instalará [name/ver] en tu computadora.%n%nMux es un lenguaje de programación moderno, accesible y ligero diseñado para que cualquiera pueda aprenderlo en horas y usarlo en proyectos reales en días.%n%nSe recomienda cerrar todas las demás aplicaciones antes de continuar.
+WelcomeLabel2=Este programa instalará [name/ver] en tu computadora.%n%nMUSHYRA es un lenguaje de programación moderno y ligero.%n%nSe recomienda cerrar todas las demás aplicaciones antes de continuar.
 FinishedHeadingLabel=Completando el Asistente de Instalación de [name]
-FinishedLabel=[name] ha sido instalado en tu computadora.%n%nPuedes ejecutar Mux desde la línea de comandos usando:%n%n  mux archivo.mux%n%nO explorar los ejemplos incluidos en la carpeta de instalación.
+FinishedLabel=[name] ha sido instalado en tu computadora.%n%nPuedes ejecutar MUSHYRA desde la línea de comandos usando:%n%n  myr archivo.myr%n%nTambién puedes usar el alias mux con programas .mux existentes.

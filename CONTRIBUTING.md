@@ -1,6 +1,6 @@
 # Contribuir
 
-Gracias por mejorar Mux. Los cambios deben mantener la gramática pequeña, los errores legibles y la documentación alineada con el comportamiento.
+Gracias por mejorar MUSHYRA. Los cambios deben mantener la gramática pequeña, los errores legibles y la documentación alineada con el comportamiento.
 
 ## Preparar el entorno
 
@@ -8,7 +8,7 @@ Gracias por mejorar Mux. Los cambios deben mantener la gramática pequeña, los 
 git clone https://github.com/MushhX/Mux.git
 cd Mux
 python -m pip install -e .
-mux examples/hola_mundo.mux
+myr examples/hola_mundo.myr
 ```
 
 ## Estructura

@@ -1,4 +1,4 @@
-"""A small dependency-free Language Server Protocol implementation for Mux."""
+"""A small dependency-free Language Server Protocol implementation for MUSHYRA."""
 
 from __future__ import annotations
 
@@ -261,7 +261,7 @@ def _diagnostic(source, line_offsets, message, code, severity, start=None, end=N
     else:
         where = _range(source, line_offsets, start, end if end is not None else start + 1)
     return {"range": where, "severity": severity, "code": str(code),
-            "source": "Mux", "message": message}
+            "source": "MUSHYRA", "message": message}
 
 
 def _compile_diagnostics(uri, source):
@@ -444,7 +444,7 @@ class MuxLanguageServer:
                 "renameProvider": True,
                 "documentSymbolProvider": True,
                 "workspaceSymbolProvider": True,
-            }, "serverInfo": {"name": "Mux Language Server", "version": "1.0"}}
+            }, "serverInfo": {"name": "MUSHYRA Language Server", "version": "2.0"}}
         if method == "initialized" or method == "$/setTrace":
             return None
         if method == "shutdown":
@@ -533,7 +533,7 @@ class MuxLanguageServer:
             if definition is None:
                 return None
             return {"contents": {"kind": "markdown",
-                                  "value": "Declaración en el documento Mux abierto."},
+                                  "value": "Declaración en el documento MUSHYRA abierto."},
                     "range": definition["range"]}
         return NotImplemented
 
@@ -575,7 +575,7 @@ class MuxLanguageServer:
             except EOFError:
                 break
             except Exception as exc:
-                print(f"Mux LSP: {exc}", file=sys.stderr)
+                print(f"MUSHYRA LSP: {exc}", file=sys.stderr)
                 break
             if message is None:
                 break
@@ -597,7 +597,7 @@ class MuxLanguageServer:
             except Exception as exc:
                 if request_id is not None:
                     self._write_message(self._error(request_id, -32603, "Internal error"))
-                print(f"Mux LSP ({method}): {exc}", file=sys.stderr)
+                print(f"MUSHYRA LSP ({method}): {exc}", file=sys.stderr)
         return 0
 
 

@@ -1,5 +1,5 @@
 """
-Script para crear un icono simple para Mux
+Script para crear un icono simple para MUSHYRA
 Creador: MushhX
 """
 
@@ -8,8 +8,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 
-def create_mux_icon():
-    """Crear icono de Mux"""
+def create_mushyra_icon():
+    """Crear icono de MUSHYRA"""
     try:
         from PIL import Image, ImageDraw, ImageFont
     except ImportError as exc:
@@ -66,4 +66,8 @@ def create_mux_icon():
         print("   Puedes convertir mux_icon.png a ICO manualmente")
 
 if __name__ == '__main__':
-    create_mux_icon()
+    create_mushyra_icon()
+
+
+# Alias interno para scripts que aún importan el nombre anterior.
+create_mux_icon = create_mushyra_icon

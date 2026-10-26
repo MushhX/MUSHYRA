@@ -1,6 +1,6 @@
 # Configuración de la CLI
 
-Mux carga configuración JSON al iniciar. La ruta se toma de `--config`, después de `MUX_CONFIG`; si ninguna está definida, usa `AppData/Roaming/Mux/config.json` en Windows o `$XDG_CONFIG_HOME/mux/config.json` (por defecto `~/.config/mux/config.json`) en Linux/macOS.
+MUSHYRA carga configuración JSON al iniciar. La ruta se toma de `--config`, después de `MYR_CONFIG` (también acepta `MUX_CONFIG`); si ninguna está definida, usa `AppData/Roaming/MUSHYRA/config.json` en Windows o `$XDG_CONFIG_HOME/myr/config.json` (por defecto `~/.config/myr/config.json`) en Linux/macOS. Si encuentra una configuración heredada en la carpeta `Mux` o `mux` y no existe una nueva, la carga desde esa ubicación.
 
 Ejemplo:
 
@@ -25,7 +25,7 @@ Claves disponibles:
 - `sandbox_root`: ruta de texto para limitar archivos e imports locales.
 - `sandbox`: `true` para bloquear red, correo, variables de entorno y módulos de bots. Si falta `sandbox_root`, se limita al directorio del programa o al actual en REPL/stdin.
 - `max_output_bytes`: bytes UTF-8 máximos escritos por el programa; predeterminado 10 MiB.
-- `max_allocation_bytes`: presupuesto aproximado de memoria asignada a valores Mux; predeterminado 64 MiB. No es una medición del heap del proceso.
+- `max_allocation_bytes`: presupuesto aproximado de memoria asignada a valores MUSHYRA; predeterminado 64 MiB. No es una medición del heap del proceso.
 - `timeout_seconds`: plazo cooperativo opcional, entre `0.001` y `86400` segundos. No puede interrumpir callbacks síncronos externos que no admitan timeout.
 - `diagnostics_format`: `text` o `json`.
 - `watch_interval`: número entre `0.1` y `60` segundos.

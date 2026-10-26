@@ -1,8 +1,8 @@
 # Referencia de la biblioteca estándar
 
-Todos los módulos se importan con `import nombre`. Las funciones también quedan disponibles sin prefijo por compatibilidad con Mux. Con `import nombre as alias`, accede a ellas como `alias.funcion(...)`.
+Todos los módulos se importan con `import nombre`. Las funciones también quedan disponibles sin prefijo por compatibilidad con MUSHYRA. Con `import nombre as alias`, accede a ellas como `alias.funcion(...)`.
 
-Las rutas relativas se resuelven desde el directorio del programa. `mux --sandbox-root DIR archivo.mux` restringe archivos y módulos locales a `DIR`; consulta [SECURITY.md](SECURITY.md) para conocer sus límites.
+Las rutas relativas se resuelven desde el directorio del programa. `myr --sandbox-root DIR archivo.myr` restringe archivos y módulos locales a `DIR`; consulta [SECURITY.md](SECURITY.md) para conocer sus límites.
 
 ## `math`
 
@@ -14,9 +14,9 @@ Constantes `pi`, `e`; funciones `abs(x)`, `max(x, ...)`, `min(x, ...)`, `pow(x, 
 
 ## `sequence`
 
-`map(funcion, coleccion)` y `filter(funcion, coleccion)` devuelven listas; `enumerate(coleccion[, inicio])` devuelve pares `(indice, valor)`; `zip(coleccion1, coleccion2[, ...])` devuelve tuplas hasta terminar la colección más corta. `any(coleccion)` y `all(coleccion)` devuelven booleanos con evaluación corta; `sum(coleccion)` suma números. Acepta listas, tuplas, strings, rangos y diccionarios (se recorren sus claves). Cada entrada se procesa con el presupuesto del intérprete y se limita a un millón de elementos. `map` y `filter` llaman funciones Mux y nativas.
+`map(funcion, coleccion)` y `filter(funcion, coleccion)` devuelven listas; `enumerate(coleccion[, inicio])` devuelve pares `(indice, valor)`; `zip(coleccion1, coleccion2[, ...])` devuelve tuplas hasta terminar la colección más corta. `any(coleccion)` y `all(coleccion)` devuelven booleanos con evaluación corta; `sum(coleccion)` suma números. Acepta listas, tuplas, strings, rangos y diccionarios (se recorren sus claves). Cada entrada se procesa con el presupuesto del intérprete y se limita a un millón de elementos. `map` y `filter` llaman funciones MUSHYRA y nativas.
 
-```mux
+```myr
 import sequence as seq
 func doble(valor)
     return valor * 2
@@ -34,7 +34,7 @@ let dobles = seq.map(doble, [1, 2, 3])
 
 ## `toml`
 
-`loads(texto)` analiza un string y `load(ruta)` lee un archivo. Los datos tienen límites de 10 MiB, 64 niveles de anidamiento y 100 000 elementos. Python 3.11 o posterior incluye el parser; en versiones anteriores instala `mux-lang[toml]`.
+`loads(texto)` analiza un string y `load(ruta)` lee un archivo. Los datos tienen límites de 10 MiB, 64 niveles de anidamiento y 100 000 elementos. Python 3.11 o posterior incluye el parser; en versiones anteriores instala `mushyra[toml]`.
 
 ## `env`
 
@@ -57,11 +57,11 @@ Admite URL HTTP/HTTPS absolutas sin credenciales embebidas. Bloquea direcciones 
 
 ## `crypto`
 
-`hash_md5(texto)`, `hash_sha256(texto)`, `encode_base64(texto)`, `decode_base64(texto)`, `generate_uuid()`, `generate_token([bytes])`, `password_hash(password)`, `password_verify(password, hash)`, `encrypt(texto, clave)` y `decrypt(texto_cifrado, clave)`. `generate_token` usa `secrets`; `password_hash`/`password_verify` usan scrypt; el cifrado usa AES-GCM y PBKDF2 y requiere instalar `mux-lang[crypto]`. MD5 se conserva por compatibilidad, no para almacenar contraseñas.
+`hash_md5(texto)`, `hash_sha256(texto)`, `encode_base64(texto)`, `decode_base64(texto)`, `generate_uuid()`, `generate_token([bytes])`, `password_hash(password)`, `password_verify(password, hash)`, `encrypt(texto, clave)` y `decrypt(texto_cifrado, clave)`. `generate_token` usa `secrets`; `password_hash`/`password_verify` usan scrypt; el cifrado usa AES-GCM y PBKDF2 y requiere instalar `mushyra[crypto]`. MD5 se conserva por compatibilidad, no para almacenar contraseñas.
 
 ## `regex`
 
-`match(patron, texto)`, `find_all(patron, texto)`, `replace(patron, reemplazo, texto)`, `split(patron, texto)`, `validate_email(email)`, `validate_url(url)`, `validate_phone(telefono)`, `extract_numbers(texto)` y `extract_emails(texto)`. Patrón máximo: 512 caracteres; entrada máxima: 64 Ki caracteres; resultados máximos: 100 000; salida materializada máxima: 10 Mi caracteres. El extra `mux-lang[regex]` activa timeouts de 100 ms. Sin él se rechazan patrones con construcciones conocidas por causar retroceso exponencial, pero el motor estándar no garantiza timeout. Las validaciones de formato no comprueban que el destino exista.
+`match(patron, texto)`, `find_all(patron, texto)`, `replace(patron, reemplazo, texto)`, `split(patron, texto)`, `validate_email(email)`, `validate_url(url)`, `validate_phone(telefono)`, `extract_numbers(texto)` y `extract_emails(texto)`. Patrón máximo: 512 caracteres; entrada máxima: 64 Ki caracteres; resultados máximos: 100 000; salida materializada máxima: 10 Mi caracteres. El extra `mushyra[regex]` activa timeouts de 100 ms. Sin él se rechazan patrones con construcciones conocidas por causar retroceso exponencial, pero el motor estándar no garantiza timeout. Las validaciones de formato no comprueban que el destino exista.
 
 ## `strings`
 
@@ -77,7 +77,7 @@ SQLite local. `connect(ruta[, timeout])` activa claves foráneas, WAL y timeout 
 
 `select` devuelve páginas de hasta 10 000 filas; `execute` también limita resultados a 10 000. Los resultados están limitados a 10 MiB. Las condiciones sencillas aceptan, por ejemplo, `"edad >= 18"` o `"nombre = 'Ana'"`. `update` y `delete` requieren condición. `transaction(funcion)` confirma si la función termina bien y revierte si falla. Para consultas complejas usa `execute` con una lista de parámetros; no concatene datos externos en SQL. Con `--sandbox-root`, `execute` bloquea instrucciones `ATTACH`, `DETACH`, `PRAGMA` y `VACUUM INTO` para mantener la restricción de rutas.
 
-```mux
+```myr
 import database as db
 let conexion = db.connect("datos.sqlite", 5)
 db.create_table("usuarios", ["id", "nombre", "edad"])
@@ -96,16 +96,16 @@ db.close(conexion)
 
 ## `web` (extra `web`)
 
-Requiere Flask: `crear_app()`, `ruta(app, path, handler)` e `iniciar(app, puerto)`. El handler es una función Mux sin argumentos que devuelve el cuerpo. El servidor enlaza a `127.0.0.1`, con debug y reloader desactivados. El servidor integrado es para desarrollo; usa un servidor WSGI de producción para desplegar.
+Requiere Flask: `crear_app()`, `ruta(app, path, handler)` e `iniciar(app, puerto)`. El handler es una función MUSHYRA sin argumentos que devuelve el cuerpo. El servidor enlaza a `127.0.0.1`, con debug y reloader desactivados. El servidor integrado es para desarrollo; usa un servidor WSGI de producción para desplegar.
 
 ## `discord_bot` (extra `discord`)
 
-Requiere `discord.py`: `crear_bot(token)`, `comando(bot, nombre, handler)` e `iniciar_bot(bot)`. El handler Mux no recibe argumentos. Los handlers se ejecutan fuera del event loop de Discord. Activa el intent de contenido de mensajes en el portal de Discord si los comandos por prefijo no llegan.
+Requiere `discord.py`: `crear_bot(token)`, `comando(bot, nombre, handler)` e `iniciar_bot(bot)`. El handler MUSHYRA no recibe argumentos. Los handlers se ejecutan fuera del event loop de Discord. Activa el intent de contenido de mensajes en el portal de Discord si los comandos por prefijo no llegan.
 
 ## `telegram_bot` (extra `telegram`)
 
-Requiere `python-telegram-bot`: `crear_bot(token)`, `comando(bot, nombre, handler)` e `iniciar_bot(bot)`. El handler Mux no recibe argumentos y se ejecuta fuera del event loop.
+Requiere `python-telegram-bot`: `crear_bot(token)`, `comando(bot, nombre, handler)` e `iniciar_bot(bot)`. El handler MUSHYRA no recibe argumentos y se ejecuta fuera del event loop.
 
 ## `whatsapp` (extra `whatsapp`)
 
-Requiere Twilio. `send(destinatario, mensaje)` lee `MUX_TWILIO_ACCOUNT_SID`, `MUX_TWILIO_AUTH_TOKEN` y, opcionalmente, `MUX_TWILIO_WHATSAPP_FROM` del entorno. Devuelve `sid` y `status` del mensaje aceptado por Twilio.
+Requiere Twilio. `send(destinatario, mensaje)` lee `MYR_TWILIO_ACCOUNT_SID`, `MYR_TWILIO_AUTH_TOKEN` y, opcionalmente, `MYR_TWILIO_WHATSAPP_FROM` del entorno. También reconoce los nombres heredados `MUX_TWILIO_*`. Devuelve `sid` y `status` del mensaje aceptado por Twilio.

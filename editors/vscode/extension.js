@@ -4,8 +4,8 @@ const vscode = require('vscode');
 class MuxClient {
   constructor(context) {
     this.context = context;
-    this.output = vscode.window.createOutputChannel('Mux Language Server');
-    this.diagnostics = vscode.languages.createDiagnosticCollection('mux');
+    this.output = vscode.window.createOutputChannel('MUSHYRA Language Server');
+    this.diagnostics = vscode.languages.createDiagnosticCollection('myr');
     this.pending = new Map();
     this.nextId = 1;
     this.buffer = Buffer.alloc(0);
@@ -14,9 +14,18 @@ class MuxClient {
   }
 
   start() {
-    const config = vscode.workspace.getConfiguration('mux');
-    const command = config.get('serverPath', 'mux');
-    const args = config.get('serverArgs', ['--lsp']);
+    const config = vscode.workspace.getConfiguration('myr');
+    const legacyConfig = vscode.workspace.getConfiguration('mux');
+    const configuredValue = (settings, key) => {
+      const values = settings.inspect(key);
+      return values?.workspaceFolderLanguageValue ?? values?.workspaceFolderValue
+        ?? values?.workspaceLanguageValue ?? values?.workspaceValue
+        ?? values?.globalLanguageValue ?? values?.globalValue;
+    };
+    const command = configuredValue(config, 'serverPath')
+      ?? configuredValue(legacyConfig, 'serverPath') ?? 'myr';
+    const args = configuredValue(config, 'serverArgs')
+      ?? configuredValue(legacyConfig, 'serverArgs') ?? ['--lsp'];
     const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     this.buffer = Buffer.alloc(0);
     this.process = cp.spawn(command, args, {
@@ -26,10 +35,10 @@ class MuxClient {
     });
     this.process.stdout.on('data', chunk => this._receive(chunk));
     this.process.stderr.on('data', chunk => this.output.append(chunk.toString()));
-    this.process.on('error', error => this.output.appendLine(`No se pudo iniciar mux: ${error.message}`));
+    this.process.on('error', error => this.output.appendLine(`No se pudo iniciar MUSHYRA: ${error.message}`));
     this.process.on('exit', (code, signal) => {
-      this.output.appendLine(`Servidor Mux finalizado (código ${code ?? signal ?? 'desconocido'}).`);
-      for (const item of this.pending.values()) item.reject(new Error('Servidor Mux detenido'));
+      this.output.appendLine(`Servidor MUSHYRA finalizado (código ${code ?? signal ?? 'desconocido'}).`);
+      for (const item of this.pending.values()) item.reject(new Error('Servidor MUSHYRA detenido'));
       this.pending.clear();
       this.process = null;
     });
@@ -38,7 +47,7 @@ class MuxClient {
       processId: process.pid,
       rootUri: root || null,
       capabilities: { textDocument: { definition: {}, references: {}, completion: {}, documentSymbol: {} } },
-      clientInfo: { name: 'Mux VS Code extension', version: '1.0.0' },
+      clientInfo: { name: 'MUSHYRA VS Code extension', version: '2.0.0' },
     }).then(() => {
       this.ready = true;
       this.notify('initialized', {});
@@ -117,7 +126,7 @@ class MuxClient {
             : vscode.DiagnosticSeverity.Warning;
         const diagnostic = new vscode.Diagnostic(this._range(item.range), item.message, severity);
         diagnostic.code = item.code;
-        diagnostic.source = item.source || 'Mux';
+        diagnostic.source = item.source || 'MUSHYRA';
         return diagnostic;
       });
       this.diagnostics.set(uri, items);

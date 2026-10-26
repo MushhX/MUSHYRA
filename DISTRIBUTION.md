@@ -1,4 +1,4 @@
-# Distribuir Mux
+# Distribuir MUSHYRA
 
 Este repositorio contiene scripts para crear artefactos localmente, pero no versiona binarios precompilados. El resultado depende del sistema y del entorno que ejecute la compilación.
 
@@ -29,13 +29,13 @@ El ZIP contiene el binario, ejemplos, documentación, versión y un archivo `SHA
 
 ## Instalador Windows
 
-En Windows x64, instala Inno Setup 6 y las dependencias de build, compila `dist/mux.exe` y ejecuta:
+En Windows x64, instala Inno Setup 6 y las dependencias de build, compila `dist/myr.exe` y ejecuta:
 
 ```console
 python build_installer.py
 ```
 
-El resultado queda en `installer_output/`. El instalador añade accesos directos opcionales y puede agregar Mux al PATH del usuario. No se crea MSI ni paquete Linux/macOS con los scripts actuales.
+El resultado queda en `installer_output/`. El instalador añade accesos directos opcionales y puede agregar MUSHYRA al PATH del usuario. No se crea MSI ni paquete Linux/macOS con los scripts actuales.
 
 ## Publicación de paquetes Python
 

@@ -49,7 +49,7 @@ class Debugger:
         self._show_watches(interpreter)
         while True:
             try:
-                command = self.input("mux-debug> ").strip()
+                command = self.input("myr-debug> ").strip()
             except EOFError:
                 command = "continue"
             parts = command.split()

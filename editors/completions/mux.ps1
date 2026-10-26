@@ -1,5 +1,5 @@
 # PowerShell completion for the Mux CLI. Dot-source this file from your profile.
-Register-ArgumentCompleter -Native -CommandName mux -ScriptBlock {
+Register-ArgumentCompleter -Native -CommandName myr, mux -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
     $options = @(
         '--version', '--repl', '--check', '--lint', '--format', '--write-format',

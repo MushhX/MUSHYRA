@@ -1,6 +1,6 @@
-# Instalar Mux
+# Instalar MUSHYRA
 
-Mux requiere Python 3.8 o posterior.
+MUSHYRA requiere Python 3.8 o posterior.
 
 ## Desde el repositorio
 
@@ -8,8 +8,8 @@ Mux requiere Python 3.8 o posterior.
 git clone https://github.com/MushhX/Mux.git
 cd Mux
 python -m pip install .
-mux --version
-mux examples/hola_mundo.mux
+myr --version
+myr examples/hola_mundo.myr
 ```
 
 Para desarrollar sobre el checkout usa `python -m pip install -e .`.
@@ -34,7 +34,7 @@ También puedes combinar extras, por ejemplo `python -m pip install ".[web,teleg
 Desde la raíz del repositorio, invoca el ejecutable de consola:
 
 ```console
-mux examples/hola_mundo.mux
+myr examples/hola_mundo.myr
 ```
 
 ## Crear un ejecutable
@@ -48,15 +48,15 @@ El artefacto aparece en `dist/` y se construye para la plataforma actual. En Win
 
 ## Solución de problemas
 
-- Si `mux` no aparece, confirma que el directorio de scripts de Python está en `PATH` o instala el paquete de nuevo; los programas Mux se ejecutan con `mux archivo.mux`.
-- Los errores del lenguaje incluyen archivo, línea y columna. `mux --debug archivo.mux` muestra el traceback de la causa interna.
-- Si falta una integración, instala su extra correspondiente. Los módulos locales y los paquetes instalados con `mux-pkg` se resuelven desde el directorio del programa y el directorio de datos Mux.
+- Si `myr` no aparece, confirma que el directorio de scripts de Python está en `PATH` o instala el paquete de nuevo; los programas MUSHYRA se ejecutan con `myr archivo.myr`.
+- Los errores del lenguaje incluyen archivo, línea y columna. `myr --debug archivo.myr` muestra el traceback de la causa interna.
+- Si falta una integración, instala su extra correspondiente. Los módulos locales y los paquetes instalados con `myr-pkg` se resuelven desde el directorio del programa y el directorio de datos MUSHYRA.
 - Define `MUX_HOME` para cambiar el directorio del gestor de paquetes.
 
 ## Desinstalar
 
 ```console
-python -m pip uninstall mux-lang
+python -m pip uninstall mushyra
 ```
 
-Esto no elimina paquetes Mux guardados en el directorio de datos del usuario.
+Esto no elimina paquetes MUSHYRA guardados en el directorio de datos del usuario.

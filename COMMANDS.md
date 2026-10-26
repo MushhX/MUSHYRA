@@ -4,66 +4,66 @@
 
 ```console
 python -m pip install .
-mux init mi-proyecto
-mux --version
-mux mi-proyecto/main.mux
-mux examples/hola_mundo.mux
+myr init mi-proyecto
+myr --version
+myr mi-proyecto/main.myr
+myr examples/hola_mundo.myr
 ```
 
 ## CLI
 
 ```console
-mux --help
-mux --check programa.mux
-mux --lint programa.mux
-mux --diagnostics-format json programa.mux
-mux --format programa.mux
-mux --write-format programa.mux
-mux --watch programa.mux
-mux --tokens programa.mux
-mux --ast programa.mux
-mux --max-steps 10000 programa.mux
-mux --max-call-depth 96 programa.mux
-mux --max-output-bytes 1048576 programa.mux
-mux --timeout-seconds 15 programa.mux
-mux --sandbox --sandbox-root ./proyecto programa.mux
-mux --debugger programa.mux
-mux --lsp
-mux --time benchmarks/interpreter_suite.mux
-mux programa.mux -- valor
-mux --debug programa.mux
-mux --repl
-mux -
-mux init tienda --template app
-mux init saludos --template library
+myr --help
+myr --check programa.myr
+myr --lint programa.myr
+myr --diagnostics-format json programa.myr
+myr --format programa.myr
+myr --write-format programa.myr
+myr --watch programa.myr
+myr --tokens programa.myr
+myr --ast programa.myr
+myr --max-steps 10000 programa.myr
+myr --max-call-depth 96 programa.myr
+myr --max-output-bytes 1048576 programa.myr
+myr --timeout-seconds 15 programa.myr
+myr --sandbox --sandbox-root ./proyecto programa.myr
+myr --debugger programa.myr
+myr --lsp
+myr --time benchmarks/interpreter_suite.mux
+myr programa.myr -- valor
+myr --debug programa.myr
+myr --repl
+myr -
+myr init tienda --template app
+myr init saludos --template library
 ```
 
-El depurador empieza detenido en la primera declaración. Usa `step`, `continue`, `break <línea> [if <expresión Mux>]`, `watch <expresión>`, `unwatch <número>`, `vars`, `scopes`, `modules`, `bt` y `quit` en el prompt `mux-debug>`. Las condiciones y observaciones se evalúan con el estado actual del intérprete. `--debug` muestra tracebacks internos; `--debugger` controla la ejecución Mux.
+El depurador empieza detenido en la primera declaración. Usa `step`, `continue`, `break <línea> [if <expresión MUSHYRA>]`, `watch <expresión>`, `unwatch <número>`, `vars`, `scopes`, `modules`, `bt` y `quit` en el prompt `myr-debug>`. Las condiciones y observaciones se evalúan con el estado actual del intérprete. `--debug` muestra tracebacks internos; `--debugger` controla la ejecución MUSHYRA.
 
-`mux --lsp` inicia el servidor de lenguaje por stdin/stdout para editores. La extensión de VS Code en `editors/vscode` lo usa para diagnósticos, autocompletado, ir a definición, referencias y símbolos del documento.
+`myr --lsp` inicia el servidor de lenguaje por stdin/stdout para editores. La extensión de VS Code en `editors/vscode` lo usa para diagnósticos, autocompletado, ir a definición, referencias y símbolos del documento.
 
-`mux -` lee el fuente desde stdin. En PowerShell, por ejemplo, `Get-Content programa.mux -Raw | mux -`.
+`myr -` lee el fuente desde stdin. En PowerShell, por ejemplo, `Get-Content programa.myr -Raw | myr -`.
 
 ## Gestor de paquetes
 
 ```console
-mux-pkg list
-mux-pkg list --json
-mux-pkg install ./paquete --name saludos
-mux-pkg install ./main.mux --name saludos
-mux-pkg install https://example.org/saludos.zip --name saludos --sha256 HASH
-mux-pkg search saludo --registry https://example.org/index.json --trust-store claves.json
-mux-pkg install saludos --from-registry --registry https://example.org/index.json --trust-store claves.json
-mux-pkg lock
-mux-pkg install-lock
-mux-pkg verify
-mux-pkg audit
-mux-pkg outdated --registry https://example.org/index.json --trust-store claves.json
-mux-pkg hashes ./saludos
-mux-pkg remove saludos
+myr-pkg list
+myr-pkg list --json
+myr-pkg install ./paquete --name saludos
+myr-pkg install ./main.myr --name saludos
+myr-pkg install https://example.org/saludos.zip --name saludos --sha256 HASH
+myr-pkg search saludo --registry https://example.org/index.json --trust-store claves.json
+myr-pkg install saludos --from-registry --registry https://example.org/index.json --trust-store claves.json
+myr-pkg lock
+myr-pkg install-lock
+myr-pkg verify
+myr-pkg audit
+myr-pkg outdated --registry https://example.org/index.json --trust-store claves.json
+myr-pkg hashes ./saludos
+myr-pkg remove saludos
 ```
 
-Las descargas HTTPS requieren hash SHA-256; las instalaciones remotas normales también requieren firma Ed25519 y una clave pública confiable. El registro se configura con `MUX_PACKAGE_REGISTRY` o `--registry`; el proyecto no mantiene un servicio público.
+Las descargas HTTPS requieren hash SHA-256; las instalaciones remotas normales también requieren firma Ed25519 y una clave pública confiable. El registro se configura con `MYR_PACKAGE_REGISTRY` o `--registry`; el proyecto no mantiene un servicio público.
 
 ## Extras opcionales
 

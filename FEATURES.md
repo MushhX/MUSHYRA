@@ -1,4 +1,4 @@
-# Características de Mux
+# Características de MUSHYRA
 
 ## Lenguaje
 
@@ -19,11 +19,11 @@ El lenguaje todavía no incluye clases, excepciones propias, generadores, async/
 - API de intérprete con resolución previa de ámbitos, valores con semántica explícita, entrada/salida inyectables, presupuestos compartidos, cancelación y límite de profundidad.
 - Presupuestos configurables de pasos, salida, asignaciones estimadas y duración; límites individuales de strings y colecciones.
 - Códigos estables para errores léxicos, sintácticos, estáticos y de ejecución; la salida JSON y LSP los conservan.
-- CLI para ejecutar archivos `.mux`, leer stdin, REPL con historial, comprobar sintaxis, tokens/AST, lint, formato, watch, argumentos, diagnósticos JSON y depurador por línea con breakpoints condicionales, watches y exploración de ámbitos/módulos.
+- CLI `myr` para ejecutar archivos `.myr` o `.mux`, leer stdin, REPL con historial, comprobar sintaxis, tokens/AST, lint, formato, watch, argumentos, diagnósticos JSON y depurador por línea con breakpoints condicionales, watches y exploración de ámbitos/módulos. `mux` sigue disponible como alias.
 - Configuración JSON por usuario, sandbox de rutas y modo estricto que deniega módulos nativos de red/entorno.
-- Servidor de lenguaje por `mux --lsp` y extensión VS Code con diagnósticos, finalización, referencias, definición, símbolos y hover básico.
+- Servidor de lenguaje por `myr --lsp` y extensión VS Code con diagnósticos, finalización, referencias, definición, símbolos y hover básico.
 - Funciones con parámetros por defecto, argumentos con nombre y un parámetro variádico final, además de las llamadas posicionales existentes.
-- `mux init [directorio]` crea una aplicación o una plantilla de biblioteca con README, sin sobrescribir archivos existentes.
+- `myr init [directorio]` crea una aplicación o una plantilla de biblioteca con README, sin sobrescribir archivos existentes.
 - Autocompletado de opciones y rutas para Bash y PowerShell.
 
 ## Módulos
@@ -32,11 +32,11 @@ Incluye 21 módulos nativos: `math`, `random`, `sequence`, `path`, `csv`, `toml`
 
 ## Herramientas
 
-- `mux-pkg` instala paquetes locales o remotos con HTTPS, SHA-256, firmas Ed25519, registro configurable, lockfiles e inspección de integridad.
+- `myr-pkg` instala paquetes locales o remotos con HTTPS, SHA-256, firmas Ed25519, registro configurable, lockfiles e inspección de integridad. `mux-pkg` sigue disponible como alias.
 - `build_exe.py` empaqueta la plataforma actual con PyInstaller.
 - `build_installer.py` genera el instalador Windows con Inno Setup.
 - `create_portable_installer.py` crea un ZIP reproducible para la plataforma actual.
-- `benchmarks/sum_100k.mux` y `benchmarks/interpreter_suite.mux` miden trabajo representativo con duración y pasos mediante `mux --time`.
+- `benchmarks/sum_100k.mux` y `benchmarks/interpreter_suite.mux` miden trabajo representativo con duración y pasos mediante `myr --time`.
 
 ## Límites actuales
 

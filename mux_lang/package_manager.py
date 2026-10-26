@@ -31,14 +31,18 @@ PACKAGE_VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(
 
 
 def _mux_home() -> Path:
-    configured = os.environ.get("MUX_HOME")
+    configured = os.environ.get("MYR_HOME") or os.environ.get("MUX_HOME")
     if configured:
         return Path(configured).expanduser().resolve()
     if os.name == "nt":
         base = Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming")))
-        return (base / "Mux").resolve()
+        current = base / "MUSHYRA"
+        legacy = base / "Mux"
+        return (current if current.exists() or not legacy.exists() else legacy).resolve()
     base = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share")))
-    return (base / "mux").resolve()
+    current = base / "myr"
+    legacy = base / "mux"
+    return (current if current.exists() or not legacy.exists() else legacy).resolve()
 
 
 MUX_HOME = _mux_home()
@@ -306,7 +310,8 @@ def _verify_manifest_file_map(declared_files, actual_files):
 
 
 def _load_trust_store(filename=None):
-    path_value = filename or os.environ.get("MUX_PACKAGE_TRUST_STORE")
+    path_value = (filename or os.environ.get("MYR_PACKAGE_TRUST_STORE")
+                  or os.environ.get("MUX_PACKAGE_TRUST_STORE"))
     if not path_value:
         return {}
     path = Path(path_value).expanduser()
@@ -344,7 +349,7 @@ def _verify_signed_payload(payload, signature, trust_store, required=False):
         canonical = json.dumps(unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         public_key.verify(signature_bytes, canonical)
     except ImportError as exc:
-        raise ValueError("Verificar firmas requiere mux-lang[crypto]") from exc
+        raise ValueError("Verificar firmas requiere mushyra[crypto]") from exc
     except (ValueError, InvalidSignature) as exc:
         raise ValueError("La firma Ed25519 del paquete no es válida") from exc
     return True
@@ -362,7 +367,7 @@ def sign_document(filename, private_key_file, key_id):
     try:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     except ImportError as exc:
-        raise ValueError("Firmar paquetes requiere mux-lang[crypto]") from exc
+        raise ValueError("Firmar paquetes requiere mushyra[crypto]") from exc
     document_path = Path(filename).expanduser().resolve()
     key_path = Path(private_key_file).expanduser()
     try:
@@ -396,7 +401,7 @@ def generate_signing_keypair(key_id, private_key_file, trust_store_file):
         from cryptography.hazmat.primitives import serialization
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     except ImportError as exc:
-        raise ValueError("Generar claves requiere mux-lang[crypto]") from exc
+        raise ValueError("Generar claves requiere mushyra[crypto]") from exc
     private_path = Path(private_key_file).expanduser().resolve()
     trust_path = Path(trust_store_file).expanduser().resolve()
     if private_path == trust_path:
@@ -567,8 +572,8 @@ def _safe_extract(archive: zipfile.ZipFile, destination: Path):
         if member.is_dir():
             target.mkdir(parents=True, exist_ok=True)
             continue
-        if target.suffix.lower() not in (".mux", ".json", ".md", ".txt"):
-            raise ValueError(f"Tipo de archivo no permitido en paquete Mux: {raw!r}")
+        if target.suffix.lower() not in (".myr", ".mux", ".json", ".md", ".txt"):
+            raise ValueError(f"Tipo de archivo no permitido en paquete MUSHYRA: {raw!r}")
         target.parent.mkdir(parents=True, exist_ok=True)
         with archive.open(member) as source, target.open("wb") as output:
             shutil.copyfileobj(source, output)
@@ -606,15 +611,15 @@ def _stage_source(source: str, staging: Path, expected_sha256=None):
     path = original_path.resolve()
     if not path.exists():
         raise FileNotFoundError(f"No existe el origen {source!r}; usa una ruta local o una URL HTTPS con --sha256")
-    if path.is_file() and path.suffix.lower() == ".mux":
+    if path.is_file() and path.suffix.lower() in (".myr", ".mux"):
         if path.stat().st_size > 20 * 1024 * 1024:
-            raise ValueError("El archivo .mux supera el límite de 20 MiB")
+            raise ValueError("El archivo MUSHYRA supera el límite de 20 MiB")
         package_dir = staging / "package"
         package_dir.mkdir()
         shutil.copy2(path, package_dir / path.name)
         actual = _sha256(path)
         if expected_sha256 and actual.lower() != expected_sha256.lower():
-            raise ValueError("SHA-256 no coincide con el archivo .mux")
+            raise ValueError("SHA-256 no coincide con el archivo MUSHYRA")
         return actual, str(path)
     if path.is_file() and zipfile.is_zipfile(path):
         if path.stat().st_size > MAX_ARCHIVE_BYTES:
@@ -636,7 +641,7 @@ def _stage_source(source: str, staging: Path, expected_sha256=None):
         for item in path.rglob("*"):
             if item.is_symlink():
                 raise ValueError(f"No se permiten enlaces simbólicos: {item}")
-            if item.is_file() and item.suffix.lower() in (".mux", ".json", ".md", ".txt"):
+            if item.is_file() and item.suffix.lower() in (".myr", ".mux", ".json", ".md", ".txt"):
                 copied_files += 1
                 file_size = item.stat().st_size
                 copied_bytes += file_size
@@ -668,7 +673,7 @@ def _stage_source(source: str, staging: Path, expected_sha256=None):
         if expected_sha256 and actual.lower() != expected_sha256.lower():
             raise ValueError("SHA-256 del contenido de la carpeta no coincide")
         return actual, str(path)
-    raise ValueError("El origen debe ser una carpeta, un .mux, un ZIP o una URL HTTPS")
+    raise ValueError("El origen debe ser una carpeta, un archivo .myr/.mux, un ZIP o una URL HTTPS")
 
 
 def package_file_hashes(directory):
@@ -753,18 +758,23 @@ def _prepare_entrypoint(package_dir: Path, package_name: str):
     main = manifest.get("main")
     if main:
         main_path = (package_dir / str(main)).resolve()
-        if package_dir.resolve() not in main_path.parents or main_path.suffix.lower() != ".mux" or not main_path.is_file():
-            raise ValueError("El campo main debe apuntar a un archivo .mux dentro del paquete")
+        if (package_dir.resolve() not in main_path.parents
+                or main_path.suffix.lower() not in (".myr", ".mux") or not main_path.is_file()):
+            raise ValueError("El campo main debe apuntar a un archivo .myr o .mux dentro del paquete")
     else:
-        expected = package_dir / f"{name}.mux"
-        mux_files = sorted(package_dir.rglob("*.mux"))
-        if expected.is_file():
-            main_path = expected
-        elif len(mux_files) == 1:
-            main_path = mux_files[0]
+        expected = [package_dir / f"{name}.myr", package_dir / f"{name}.mux"]
+        source_files = sorted(
+            [*package_dir.rglob("*.myr"), *package_dir.rglob("*.mux")],
+            key=lambda item: (item.suffix.lower() != ".myr", item.as_posix().casefold()),
+        )
+        expected_file = next((item for item in expected if item.is_file()), None)
+        if expected_file is not None:
+            main_path = expected_file
+        elif len(source_files) == 1:
+            main_path = source_files[0]
         else:
-            raise ValueError("Define 'main' en mux-package.json o incluye un único .mux de entrada")
-    target = package_dir / f"{name}.mux"
+            raise ValueError("Define 'main' en mux-package.json o incluye un único archivo .myr/.mux de entrada")
+    target = package_dir / f"{name}{main_path.suffix.lower()}"
     if main_path != target:
         shutil.copy2(main_path, target)
     return name, manifest
@@ -801,7 +811,7 @@ def list_packages(as_json: bool = False):
     if not packages:
         print("No hay paquetes instalados")
         return packages
-    print("Paquetes Mux instalados:\n")
+    print("Paquetes MUSHYRA instalados:\n")
     for name, info in sorted(packages.items()):
         print(f"  {name} ({info.get('version', 'sin versión')})")
         print(f"    {info.get('description', 'Sin descripción')}")
@@ -847,8 +857,8 @@ def install_package(source: str, name: str = None, sha256: str = None,
             # a canonical import filename for the installed module.
             _verify_manifest_file_map(manifest.get("files"), source_file_hashes)
         files = sorted(item.relative_to(package_dir).as_posix() for item in package_dir.rglob("*") if item.is_file())
-        if not any(item.endswith(".mux") for item in files):
-            raise ValueError("El paquete debe incluir al menos un archivo .mux")
+        if not any(item.endswith((".myr", ".mux")) for item in files):
+            raise ValueError("El paquete debe incluir al menos un archivo .myr o .mux")
 
         target = PACKAGES_DIR / package_name
         install_stage = staging_root / "ready"
@@ -927,9 +937,9 @@ def audit_packages():
 
 
 def _load_registry_index(registry_source=None, trusted_keys_file=None):
-    source = registry_source or os.environ.get("MUX_PACKAGE_REGISTRY")
+    source = registry_source or os.environ.get("MYR_PACKAGE_REGISTRY") or os.environ.get("MUX_PACKAGE_REGISTRY")
     if not source:
-        raise ValueError("Configura MUX_PACKAGE_REGISTRY con un índice local o una URL HTTPS firmada")
+        raise ValueError("Configura MYR_PACKAGE_REGISTRY con un índice local o una URL HTTPS firmada")
     parsed = urlsplit(str(source))
     remote = parsed.scheme.lower() in ("http", "https")
     if remote and parsed.scheme.lower() != "https":
@@ -1169,7 +1179,7 @@ def uninstall_package(package_name: str):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="mux-pkg", description="Administra paquetes Mux locales y firmados")
+    parser = argparse.ArgumentParser(prog="myr-pkg", description="Administra paquetes MUSHYRA locales y firmados")
     subparsers = parser.add_subparsers(dest="command", required=True)
     list_parser = subparsers.add_parser("list", help="Lista paquetes instalados")
     list_parser.add_argument("--json", action="store_true", help="Imprime el registro como JSON")
@@ -1296,7 +1306,7 @@ def main(argv=None):
                 return 1
         return 0
     except (OSError, ValueError, RuntimeError, zipfile.BadZipFile) as exc:
-        print(f"mux-pkg: {exc}", file=sys.stderr)
+        print(f"myr-pkg: {exc}", file=sys.stderr)
         return 1
 
 

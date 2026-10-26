@@ -579,7 +579,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             try:
                 import tomli as toml_parser
             except ImportError as exc:
-                raise _error("TOML requiere instalar mux-lang[toml] en Python anterior a 3.11") from exc
+                raise _error("TOML requiere instalar mushyra[toml] en Python anterior a 3.11") from exc
 
         def validate(value, vm):
             stack = [(value, 0)]
@@ -966,7 +966,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 or re.search(r"\([^)]*\|[^)]*\)[+*{]", pattern)
                 or re.search(r"\\[1-9]", pattern)
             ):
-                raise _error("El patrón contiene cuantificadores ambiguos; instala mux-lang[regex] para límites de tiempo")
+                raise _error("El patrón contiene cuantificadores ambiguos; instala mushyra[regex] para límites de tiempo")
             try:
                 return regex_engine.compile(pattern)
             except re.error as exc:
@@ -1669,7 +1669,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 from flask import Flask
                 return Flask
             except ImportError as exc:
-                raise _error("El módulo web requiere instalar mux-lang[web]") from exc
+                raise _error("El módulo web requiere instalar mushyra[web]") from exc
 
         def create_app(_vm, *args):
             _arity("crear_app", args, 0)
@@ -1702,7 +1702,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 import discord
                 from discord.ext import commands
             except ImportError as exc:
-                raise _error("discord_bot requiere instalar mux-lang[discord]") from exc
+                raise _error("discord_bot requiere instalar mushyra[discord]") from exc
             intents = discord.Intents.default()
             intents.message_content = True
             bot = commands.Bot(command_prefix="!", intents=intents)
@@ -1738,7 +1738,7 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             try:
                 from telegram.ext import Application
             except ImportError as exc:
-                raise _error("telegram_bot requiere instalar mux-lang[telegram]") from exc
+                raise _error("telegram_bot requiere instalar mushyra[telegram]") from exc
             bot = {"application_builder": Application, "commands": []}
             state["tokens"][id(bot)] = str(args[0])
             return bot
@@ -1775,12 +1775,15 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             try:
                 from twilio.rest import Client
             except ImportError as exc:
-                raise _error("whatsapp requiere instalar mux-lang[whatsapp]") from exc
-            account_sid = os.environ.get("MUX_TWILIO_ACCOUNT_SID")
-            auth_token = os.environ.get("MUX_TWILIO_AUTH_TOKEN")
-            sender = os.environ.get("MUX_TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")
+                raise _error("whatsapp requiere instalar mushyra[whatsapp]") from exc
+            account_sid = (os.environ.get("MYR_TWILIO_ACCOUNT_SID")
+                           or os.environ.get("MUX_TWILIO_ACCOUNT_SID"))
+            auth_token = (os.environ.get("MYR_TWILIO_AUTH_TOKEN")
+                          or os.environ.get("MUX_TWILIO_AUTH_TOKEN"))
+            sender = (os.environ.get("MYR_TWILIO_WHATSAPP_FROM")
+                      or os.environ.get("MUX_TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886"))
             if not account_sid or not auth_token:
-                raise _error("Configura MUX_TWILIO_ACCOUNT_SID y MUX_TWILIO_AUTH_TOKEN")
+                raise _error("Configura MYR_TWILIO_ACCOUNT_SID y MYR_TWILIO_AUTH_TOKEN")
             try:
                 message = Client(account_sid, auth_token).messages.create(
                     from_=sender, to=str(args[0]), body=str(args[1]))

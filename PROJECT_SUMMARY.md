@@ -1,6 +1,6 @@
-# Resumen de Mux
+# Resumen de MUSHYRA
 
-Mux es un lenguaje interpretado implementado en Python. El paquete declara la versión en `mux_lang/_version.py` y ofrece dos comandos de consola: `mux` y `mux-pkg`.
+MUSHYRA es un lenguaje interpretado implementado en Python. El paquete declara la versión en `mux_lang/_version.py` y ofrece los comandos `myr` y `myr-pkg`; `mux` y `mux-pkg` se mantienen como alias.
 
 ## Componentes
 
@@ -14,7 +14,7 @@ Mux es un lenguaje interpretado implementado en Python. El paquete declara la ve
 
 ## Arquitectura
 
-El lexer crea tokens con línea y columna. El parser conserva los saltos de línea que separan declaraciones y produce el AST consumido por el intérprete. Los módulos Mux locales y los paquetes del usuario se cargan desde archivos `.mux`; los módulos estándar son implementaciones nativas.
+El lexer crea tokens con línea y columna. El parser conserva los saltos de línea que separan declaraciones y produce el AST consumido por el intérprete. Los módulos MUSHYRA locales y los paquetes del usuario se cargan desde archivos `.myr`; los módulos estándar son implementaciones nativas.
 
 El runtime permite inyectar streams, limitar pasos/recursión y cancelar cooperativamente. `--sandbox-root` limita rutas de archivos y bloquea SQLite file escapes, pero no es una frontera para ejecutar código hostil.
 
@@ -22,8 +22,8 @@ El runtime permite inyectar streams, limitar pasos/recursión y cancelar coopera
 
 ```console
 python -m pip install .
-mux examples/hola_mundo.mux
-mux --check examples/hola_mundo.mux
+myr examples/hola_mundo.myr
+myr --check examples/hola_mundo.myr
 ```
 
 Consulta [README.md](README.md), [INSTALL.md](INSTALL.md) y [STDLIB_REFERENCE.md](STDLIB_REFERENCE.md).

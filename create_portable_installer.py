@@ -35,11 +35,11 @@ def _write_text(path, content):
 
 def _write_metadata(staging):
     platform_tag = f"{platform.system().lower()}-{platform.machine().lower()}"
-    binary = "mux.exe" if os.name == "nt" else "mux"
-    install_text = f"""Mux {__version__} — paquete portable
+    binary = "myr.exe" if os.name == "nt" else "myr"
+    install_text = f"""MUSHYRA {__version__} — paquete portable
 
 1. Extrae esta carpeta.
-2. Ejecuta {binary} examples/hola_mundo.mux.
+2. Ejecuta {binary} examples/hola_mundo.myr.
 3. Consulta README.md y QUICKSTART.md.
 
 Las integraciones opcionales estarán incluidas solo si sus dependencias se
@@ -49,7 +49,7 @@ de los archivos incluidos.
     _write_text(staging / "INSTALL.txt", install_text)
     _write_text(
         staging / "VERSION.txt",
-        f"Mux {__version__}\nPlatform: {platform_tag}\nArchitecture: {platform.machine()}\n",
+        f"MUSHYRA {__version__}\nPlatform: {platform_tag}\nArchitecture: {platform.machine()}\n",
     )
     manifest = []
     for path in sorted(staging.rglob("*")):
@@ -61,7 +61,7 @@ de los archivos incluidos.
 
 def create_portable_installer(output_dir=None):
     suffix = ".exe" if os.name == "nt" else ""
-    executable = ROOT / "dist" / f"mux{suffix}"
+    executable = ROOT / "dist" / f"myr{suffix}"
     if not executable.is_file():
         print(f"No se encontró {executable}; ejecuta primero python build_exe.py", file=sys.stderr)
         return 1
@@ -70,17 +70,20 @@ def create_portable_installer(output_dir=None):
     build_dir = ROOT / "build"
     build_dir.mkdir(exist_ok=True)
     try:
-        with tempfile.TemporaryDirectory(prefix="mux-portable-", dir=str(build_dir)) as temp_name:
-            staging = Path(temp_name) / "mux"
+        with tempfile.TemporaryDirectory(prefix="myr-portable-", dir=str(build_dir)) as temp_name:
+            staging = Path(temp_name) / "myr"
             staging.mkdir()
             shutil.copy2(executable, staging / executable.name)
+            legacy_executable = ROOT / "dist" / f"mux{suffix}"
+            if legacy_executable.is_file():
+                shutil.copy2(legacy_executable, staging / legacy_executable.name)
             shutil.copytree(ROOT / "examples", staging / "examples")
             for name in DOCS:
                 source = ROOT / name
                 if source.is_file():
                     shutil.copy2(source, staging / source.name)
             platform_tag = _write_metadata(staging)
-            archive_path = output / f"mux-portable-v{__version__}-{platform_tag}.zip"
+            archive_path = output / f"mushyra-portable-v{__version__}-{platform_tag}.zip"
             with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
                 for path in sorted(staging.rglob("*")):
                     if not path.is_file():
@@ -98,7 +101,7 @@ def create_portable_installer(output_dir=None):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Crea un ZIP portable de Mux")
+    parser = argparse.ArgumentParser(description="Crea un ZIP portable de MUSHYRA")
     parser.add_argument("--output-dir", help="Carpeta de salida; por defecto el repositorio")
     args = parser.parse_args(argv)
     return create_portable_installer(args.output_dir)

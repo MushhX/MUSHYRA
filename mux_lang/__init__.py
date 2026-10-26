@@ -1,5 +1,5 @@
 """
-Mux Programming Language
+MUSHYRA Programming Language
 Creador: MushhX
 Un lenguaje moderno, accesible y ligero
 """
