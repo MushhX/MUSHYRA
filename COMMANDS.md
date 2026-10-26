@@ -34,9 +34,11 @@ mux programa.mux -- valor
 mux --debug programa.mux
 mux --repl
 mux -
+mux init tienda --template app
+mux init saludos --template library
 ```
 
-El depurador empieza detenido en la primera declaración. Usa `step`, `continue`, `break <línea>`, `vars`, `bt` y `quit` en el prompt `mux-debug>`. `--debug` sigue mostrando tracebacks internos; `--debugger` controla la ejecución Mux.
+El depurador empieza detenido en la primera declaración. Usa `step`, `continue`, `break <línea> [if <expresión Mux>]`, `watch <expresión>`, `unwatch <número>`, `vars`, `scopes`, `modules`, `bt` y `quit` en el prompt `mux-debug>`. Las condiciones y observaciones se evalúan con el estado actual del intérprete. `--debug` muestra tracebacks internos; `--debugger` controla la ejecución Mux.
 
 `mux --lsp` inicia el servidor de lenguaje por stdin/stdout para editores. La extensión de VS Code en `editors/vscode` lo usa para diagnósticos, autocompletado, ir a definición, referencias y símbolos del documento.
 

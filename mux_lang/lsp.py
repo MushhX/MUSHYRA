@@ -11,7 +11,7 @@ from urllib.parse import unquote, urlparse
 from .lexer import Lexer, MuxError
 from .linter import lint_ast
 from .parser import Parser
-from .resolver import analyze_program
+from .resolver import _statement_expressions, analyze_program
 
 
 MAX_MESSAGE_BYTES = 16 * 1024 * 1024
@@ -168,6 +168,25 @@ def _document_index(source, tokens, tree):
         elif pattern[0] == "pattern_list":
             for child in pattern[1]:
                 collect_pattern(child, statement, scope_id)
+        elif pattern[0] == "pattern_dict":
+            for _key, child in pattern[1]:
+                collect_pattern(child, statement, scope_id)
+
+    def collect_comprehension_variables(value, statement):
+        if isinstance(value, list):
+            for child in value:
+                collect_comprehension_variables(child, statement)
+            return
+        if not isinstance(value, tuple) or not value:
+            return
+        if value[0] == "comp_var":
+            span = getattr(value, "span", None)
+            if span is not None:
+                token = _find_name_token(token_index, value[1], span.start_offset, span.end_offset)
+                add_definition(value[1], token, 13, statement, id(value))
+            return
+        for child in value[1:]:
+            collect_comprehension_variables(child, statement)
 
     def collect_statements(block, scope_id=None):
         for statement in block:
@@ -194,6 +213,11 @@ def _document_index(source, tokens, tree):
                                13, statement, scope_id)
             elif kind in ("destructure_let", "destructure_assign"):
                 collect_pattern(statement[1], statement, scope_id)
+            for expression in _statement_expressions(statement):
+                collect_comprehension_variables(expression, statement)
+            if kind == "func" and len(statement) > 4:
+                for _name, expression in statement[4]:
+                    collect_comprehension_variables(expression, statement)
             for child in _statement_blocks(statement):
                 collect_statements(child, id(statement) if kind == "func" else scope_id)
 
@@ -253,7 +277,7 @@ def _compile_diagnostics(uri, source):
         if exc.line is not None and exc.column is not None:
             line = max(0, min(len(line_offsets) - 1, exc.line - 1))
             offset = line_offsets[line] + max(0, exc.column - 1)
-        return [_diagnostic(source, line_offsets, exc.message, "MUX200", 1,
+        return [_diagnostic(source, line_offsets, exc.message, exc.code, 1,
                             offset, offset + 1 if offset is not None else None)], None
 
     diagnostics = []
@@ -273,7 +297,7 @@ def _compile_diagnostics(uri, source):
         if exc.line is not None and exc.column is not None:
             line = max(0, min(len(line_offsets) - 1, exc.line - 1))
             offset = line_offsets[line] + max(0, exc.column - 1)
-        diagnostic = _diagnostic(source, line_offsets, exc.message, "MUX201", 1,
+        diagnostic = _diagnostic(source, line_offsets, exc.message, exc.code, 1,
                                  offset, offset + 1 if offset is not None else None)
         diagnostics.append(diagnostic)
     return diagnostics, (tokens, tree)

@@ -24,6 +24,18 @@ end
 let dobles = seq.map(doble, [1, 2, 3])
 ```
 
+## `path`
+
+`join(parte, ...)`, `normalize(ruta)`, `basename(ruta)`, `dirname(ruta)`, `stem(ruta)`, `extension(ruta)`, `is_absolute(ruta)` y `relative(base, destino)` usan la sintaxis de rutas de la plataforma actual. No acceden al sistema de archivos.
+
+## `csv`
+
+`read(ruta[, delimitador])` devuelve filas como listas de strings; `write(ruta, filas[, delimitador])` escribe filas atómicamente. El delimitador debe ser un carácter. Lectura y escritura están limitadas a 10 MiB, y el acceso a rutas respeta `--sandbox-root`.
+
+## `toml`
+
+`loads(texto)` analiza un string y `load(ruta)` lee un archivo. Los datos tienen límites de 10 MiB, 64 niveles de anidamiento y 100 000 elementos. Python 3.11 o posterior incluye el parser; en versiones anteriores instala `mux-lang[toml]`.
+
 ## `env`
 
 `get(nombre[, predeterminado])` lee una variable de entorno y devuelve `null` si no existe; `require(nombre)` falla con un error legible si falta o está vacía; `has(nombre)` comprueba si está definida. El módulo no permite modificar el entorno.
@@ -57,7 +69,7 @@ Admite URL HTTP/HTTPS absolutas sin credenciales embebidas. Bloquea direcciones 
 
 ## `time`
 
-`now()` y `timestamp()` devuelven segundos Unix; `now_utc()` devuelve fecha ISO-8601 en UTC; `format_date(timestamp[, formato])` usa hora local y `format_date_utc(timestamp[, formato])` UTC. `sleep(segundos)` espera hasta 300 segundos y responde a la cancelación del intérprete. `get_year()`, `get_month()`, `get_day()`, `get_hour()`, `get_minute()` y `get_second()` consultan hora local. `measure_time(funcion)` ejecuta una función sin argumentos y devuelve segundos transcurridos.
+`now()` y `timestamp()` devuelven segundos Unix; `now_utc()` y `now_in_timezone(zona)` devuelven fechas ISO-8601. `parse_iso(fecha)` valida y normaliza una fecha; `to_timezone(fecha, zona)` convierte una fecha con offset explícito a una zona IANA. Las zonas IANA requieren Python 3.9 o posterior. `add_seconds(fecha, segundos)` calcula una fecha nueva y `duration_seconds(inicio, fin)` devuelve la diferencia en segundos. `seconds(n)`, `minutes(n)`, `hours(n)` y `days(n)` convierten duraciones a segundos. `format_date(timestamp[, formato])` usa hora local y `format_date_utc(timestamp[, formato])` UTC. `sleep(segundos)` espera hasta 300 segundos y responde a la cancelación del intérprete. `get_year()`, `get_month()`, `get_day()`, `get_hour()`, `get_minute()` y `get_second()` consultan hora local. `measure_time(funcion)` ejecuta una función sin argumentos y devuelve segundos transcurridos.
 
 ## `database`
 

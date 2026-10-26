@@ -7,8 +7,10 @@ locations consistently.
 
 import base64
 import binascii
+import csv as csv_module
 import hashlib
 import hmac
+import io
 import ipaddress
 import json
 import math
@@ -24,7 +26,7 @@ import time
 import tempfile
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Any, Callable, Dict
@@ -335,13 +337,13 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 raise _error(f"Una secuencia no puede superar {MAX_NATIVE_SEQUENCE_ITEMS} elementos")
             return value, size
 
-        def snapshot(value):
+        def snapshot(value, vm):
             value, size = sequence_items(value)
             item_cost = 64 if isinstance(value, str) else 36 if isinstance(value, range) else 8
-            interpreter._charge_allocation(48 + item_cost * size)
+            vm._charge_allocation(48 + item_cost * size)
             items = []
             for item in value:
-                interpreter._tick()
+                vm._tick()
                 items.append(item)
             return items
 
@@ -350,76 +352,84 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                 raise _error("El primer argumento debe ser una función Mux")
             return value
 
-        def map_values(_vm, *args):
+        def map_values(vm, *args):
             _arity("sequence.map", args, 2)
             function = callback(args[0])
-            items = snapshot(args[1])
+            items = snapshot(args[1], vm)
+            vm._charge_allocation(64)
             result = []
             for item in items:
-                interpreter._tick()
-                result.append(interpreter.call_value(function, [item]))
+                vm._tick()
+                vm._charge_allocation(8)
+                result.append(vm.call_value(function, [item]))
             return result
 
-        def filter_values(_vm, *args):
+        def filter_values(vm, *args):
             _arity("sequence.filter", args, 2)
             function = callback(args[0])
-            items = snapshot(args[1])
+            items = snapshot(args[1], vm)
+            vm._charge_allocation(64)
             result = []
             for item in items:
-                interpreter._tick()
-                if ValueSemantics.truthy(interpreter.call_value(function, [item])):
+                vm._tick()
+                if ValueSemantics.truthy(vm.call_value(function, [item])):
+                    vm._charge_allocation(8)
                     result.append(item)
             return result
 
-        def enumerate_values(_vm, *args):
+        def enumerate_values(vm, *args):
             _arity("sequence.enumerate", args, 1, 2)
             start = args[1] if len(args) == 2 else 0
             if not isinstance(start, int) or isinstance(start, bool):
                 raise _error("sequence.enumerate requiere un índice entero")
             items, _size = sequence_items(args[0])
+            vm._charge_allocation(64)
             result = []
             for index, item in enumerate(items):
-                interpreter._tick()
-                result.append((interpreter._guard_value(start + index), item))
+                vm._tick()
+                vm._charge_allocation(64)
+                result.append((vm._guard_value(start + index), item))
             return result
 
-        def zip_values(_vm, *args):
+        def zip_values(vm, *args):
             _arity("sequence.zip", args, 2, 32)
             sources = [sequence_items(value)[0] for value in args]
             result_size = min(map(len, sources))
+            vm._charge_allocation(64)
             result = []
             for index in range(result_size):
-                interpreter._tick()
+                vm._tick()
+                vm._charge_allocation(48 + 8 * len(sources))
                 result.append(tuple(source[index] for source in sources))
             return result
 
-        def any_value(_vm, *args):
+        def any_value(vm, *args):
             _arity("sequence.any", args, 1)
             items, _size = sequence_items(args[0])
             for item in items:
-                interpreter._tick()
+                vm._tick()
                 if ValueSemantics.truthy(item):
                     return True
             return False
 
-        def all_value(_vm, *args):
+        def all_value(vm, *args):
             _arity("sequence.all", args, 1)
             items, _size = sequence_items(args[0])
             for item in items:
-                interpreter._tick()
+                vm._tick()
                 if not ValueSemantics.truthy(item):
                     return False
             return True
 
-        def sum_values(_vm, *args):
+        def sum_values(vm, *args):
             _arity("sequence.sum", args, 1)
             total = 0
             items, _size = sequence_items(args[0])
             for item in items:
-                interpreter._tick()
+                vm._tick()
                 if not ValueSemantics.is_number(item):
                     raise _error("sequence.sum solo admite números")
-                total = interpreter._guard_value(total + item)
+                total = vm._guard_value(total + item)
             return total
 
         return {key: _wrap(f"sequence.{key}", fn) for key, fn in {
@@ -448,6 +458,181 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
         return {key: _wrap(key, fn) for key, fn in {
             "get": get_value, "require": require_value, "has": has_value,
         }.items()}
+
+    if name == "path":
+        def text_path(value):
+            if not isinstance(value, str) or "\x00" in value:
+                raise _error("La ruta debe ser un string sin bytes nulos")
+            return value
+
+        def join(_vm, *args):
+            _arity("path.join", args, 1, 64)
+            result = str(Path(text_path(args[0])).joinpath(*(text_path(item) for item in args[1:])))
+            _utf8_length(result, interpreter)
+            return result
+
+        def normalize(_vm, *args):
+            _arity("path.normalize", args, 1)
+            result = os.path.normpath(text_path(args[0]))
+            _utf8_length(result, interpreter)
+            return result
+
+        def basename(_vm, *args):
+            _arity("path.basename", args, 1)
+            return Path(text_path(args[0])).name
+
+        def dirname(_vm, *args):
+            _arity("path.dirname", args, 1)
+            result = str(Path(text_path(args[0])).parent)
+            return "" if result == "." else result
+
+        def stem(_vm, *args):
+            _arity("path.stem", args, 1)
+            return Path(text_path(args[0])).stem
+
+        def extension(_vm, *args):
+            _arity("path.extension", args, 1)
+            return Path(text_path(args[0])).suffix
+
+        def is_absolute(_vm, *args):
+            _arity("path.is_absolute", args, 1)
+            return Path(text_path(args[0])).is_absolute()
+
+        def relative(_vm, *args):
+            _arity("path.relative", args, 2)
+            try:
+                result = os.path.relpath(text_path(args[1]), text_path(args[0]))
+            except (OSError, ValueError) as exc:
+                raise _error(f"No se pudo calcular la ruta relativa: {exc}") from exc
+            _utf8_length(result, interpreter)
+            return result
+
+        return {key: _wrap(f"path.{key}", fn) for key, fn in {
+            "join": join, "normalize": normalize, "basename": basename,
+            "dirname": dirname, "stem": stem, "extension": extension,
+            "is_absolute": is_absolute, "relative": relative,
+        }.items()}
+
+    if name == "csv":
+        def delimiter_value(value):
+            if not isinstance(value, str) or len(value) != 1 or value in "\r\n\x00":
+                raise _error("El delimitador CSV debe ser un único carácter normal")
+            return value
+
+        def read_csv(vm, *args):
+            _arity("csv.read", args, 1, 2)
+            delimiter = delimiter_value(args[1]) if len(args) == 2 else ","
+            try:
+                source = _read_text_bounded(vm.resolve_path(args[0]), limit=MAX_MUX_STRING_BYTES)
+                reader = csv_module.reader(io.StringIO(source, newline=""), delimiter=delimiter)
+                rows = []
+                for row in reader:
+                    vm._tick()
+                    if len(rows) >= MAX_DIRECTORY_ENTRIES or len(row) > MAX_DIRECTORY_ENTRIES:
+                        raise _error("El CSV supera el límite de filas o columnas")
+                    rows.append(row)
+                return rows
+            except (OSError, UnicodeError, csv_module.Error) as exc:
+                raise _error(f"No se pudo leer el CSV {args[0]!r}: {exc}") from exc
+
+        def write_csv(vm, *args):
+            _arity("csv.write", args, 2, 3)
+            delimiter = delimiter_value(args[2]) if len(args) == 3 else ","
+            rows = args[1]
+            if not isinstance(rows, (list, tuple)) or len(rows) > MAX_DIRECTORY_ENTRIES:
+                raise _error(f"csv.write requiere como máximo {MAX_DIRECTORY_ENTRIES} filas")
+
+            class BoundedSink:
+                def __init__(self):
+                    self.chunks = []
+                    self.size = 0
+
+                def write(self, chunk):
+                    encoded_size = len(chunk.encode("utf-8"))
+                    if self.size + encoded_size > MAX_MUX_STRING_BYTES:
+                        raise _error("El CSV supera el límite de 10 MiB")
+                    self.chunks.append(chunk)
+                    self.size += encoded_size
+                    return len(chunk)
+
+            sink = BoundedSink()
+            try:
+                writer = csv_module.writer(sink, delimiter=delimiter, lineterminator="\r\n")
+                for row in rows:
+                    vm._tick()
+                    if not isinstance(row, (list, tuple)) or len(row) > MAX_DIRECTORY_ENTRIES:
+                        raise _error("Cada fila CSV debe ser una lista o tupla acotada")
+                    writer.writerow([("" if value is None else "true" if value is True else
+                                      "false" if value is False else str(value)) for value in row])
+                content = "".join(sink.chunks)
+                _atomic_write_text(vm.resolve_path(args[0]), content)
+                return True
+            except (OSError, UnicodeError, csv_module.Error) as exc:
+                raise _error(f"No se pudo escribir el CSV {args[0]!r}: {exc}") from exc
+
+        return {"read": _wrap("csv.read", read_csv), "write": _wrap("csv.write", write_csv)}
+
+    if name == "toml":
+        try:
+            import tomllib as toml_parser
+        except ImportError:
+            try:
+                import tomli as toml_parser
+            except ImportError as exc:
+                raise _error("TOML requiere instalar mux-lang[toml] en Python anterior a 3.11") from exc
+
+        def validate(value, vm):
+            stack = [(value, 0)]
+            count = 0
+            while stack:
+                item, depth = stack.pop()
+                vm._tick()
+                count += 1
+                if count > MAX_DIRECTORY_ENTRIES:
+                    raise _error("El TOML supera el límite de elementos")
+                if depth > 64:
+                    raise _error("El TOML supera el límite de anidamiento")
+                if isinstance(item, dict):
+                    if len(item) > MAX_DIRECTORY_ENTRIES:
+                        raise _error("Una tabla TOML supera el límite de claves")
+                    stack.extend((child, depth + 1) for child in item.values())
+                elif isinstance(item, list):
+                    if len(item) > MAX_DIRECTORY_ENTRIES:
+                        raise _error("Una lista TOML supera el límite de elementos")
+                    stack.extend((child, depth + 1) for child in item)
+                elif isinstance(item, str):
+                    _utf8_length(item, vm)
+                elif isinstance(item, int) and not isinstance(item, bool):
+                    if item.bit_length() > 1_000_000:
+                        raise _error("Un entero TOML supera el límite de Mux")
+                elif isinstance(item, float) and not math.isfinite(item):
+                    raise _error("TOML no puede contener valores no finitos")
+                elif item is not None and not isinstance(item, (bool, float)):
+                    module = type(item).__module__
+                    name_ = type(item).__name__
+                    if module != "datetime" or name_ not in ("date", "time", "datetime"):
+                        raise _error(f"El tipo TOML {name_!r} no está disponible en Mux")
+            return value
+
+        def loads(vm, *args):
+            _arity("toml.loads", args, 1)
+            if not isinstance(args[0], str):
+                raise _error("toml.loads requiere un string")
+            _utf8_length(args[0], vm)
+            try:
+                return validate(toml_parser.loads(args[0]), vm)
+            except (ValueError, RecursionError) as exc:
+                raise _error(f"TOML no válido: {exc}") from exc
+
+        def load(vm, *args):
+            _arity("toml.load", args, 1)
+            try:
+                source = _read_text_bounded(vm.resolve_path(args[0]), limit=MAX_JSON_BYTES)
+            except (OSError, UnicodeError) as exc:
+                raise _error(f"No se pudo leer TOML {args[0]!r}: {exc}") from exc
+            return loads(vm, source)
+
+        return {"load": _wrap("toml.load", load), "loads": _wrap("toml.loads", loads)}
 
     if name == "http":
         def request(method, url, data=None, headers=None, timeout=10, allow_private=False):
@@ -924,6 +1109,26 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
         return {key: _wrap(key, fn) for key, fn in functions.items()}
 
     if name == "time":
+        def parse_datetime(value):
+            if not isinstance(value, str):
+                raise _error("La fecha debe ser un string ISO-8601")
+            normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+            try:
+                return datetime.fromisoformat(normalized)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise _error(f"Fecha ISO-8601 no válida: {exc}") from exc
+
+        def duration_value(value):
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                raise _error("La duración debe ser un número finito de segundos")
+            try:
+                seconds = float(value)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise _error("La duración debe ser un número finito de segundos") from exc
+            if not math.isfinite(seconds):
+                raise _error("La duración debe ser un número finito de segundos")
+            return seconds
+
         def sleep(_vm, *args):
             _arity("sleep", args, 1)
             seconds = float(args[0])
@@ -939,6 +1144,67 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
         def now_utc(_vm, *args):
             _arity("now_utc", args, 0)
             return datetime.now(timezone.utc).isoformat()
+
+        def now_in_timezone(_vm, *args):
+            _arity("now_in_timezone", args, 1)
+            if not isinstance(args[0], str) or not args[0]:
+                raise _error("now_in_timezone requiere un nombre de zona IANA")
+            try:
+                from zoneinfo import ZoneInfo
+            except ImportError as exc:
+                raise _error("Las zonas IANA requieren Python 3.9 o posterior") from exc
+            try:
+                return datetime.now(ZoneInfo(args[0])).isoformat()
+            except (KeyError, ValueError, OSError) as exc:
+                raise _error(f"Zona horaria no reconocida: {args[0]!r}") from exc
+
+        def parse_iso(_vm, *args):
+            _arity("parse_iso", args, 1)
+            return parse_datetime(args[0]).isoformat()
+
+        def to_timezone(_vm, *args):
+            _arity("to_timezone", args, 2)
+            value, zone_name = args
+            if not isinstance(zone_name, str) or not zone_name:
+                raise _error("to_timezone requiere un nombre de zona IANA")
+            instant = parse_datetime(value)
+            if instant.utcoffset() is None:
+                raise _error("La fecha debe incluir un offset explícito antes de cambiar de zona")
+            try:
+                from zoneinfo import ZoneInfo
+            except ImportError as exc:
+                raise _error("Las zonas IANA requieren Python 3.9 o posterior") from exc
+            try:
+                return instant.astimezone(ZoneInfo(zone_name)).isoformat()
+            except (KeyError, ValueError, OverflowError, OSError) as exc:
+                raise _error(f"Zona horaria no reconocida: {zone_name!r}") from exc
+
+        def add_seconds(_vm, *args):
+            _arity("add_seconds", args, 2)
+            instant = parse_datetime(args[0])
+            try:
+                return (instant + timedelta(seconds=duration_value(args[1]))).isoformat()
+            except (OverflowError, ValueError) as exc:
+                raise _error(f"La duración queda fuera del rango de fechas: {exc}") from exc
+
+        def duration_seconds(_vm, *args):
+            _arity("duration_seconds", args, 2)
+            start, end = parse_datetime(args[0]), parse_datetime(args[1])
+            if (start.utcoffset() is None) != (end.utcoffset() is None):
+                raise _error("Las dos fechas deben tener offset explícito o ambas ser locales")
+            try:
+                return (end - start).total_seconds()
+            except (OverflowError, ValueError) as exc:
+                raise _error(f"No se pudo calcular la duración: {exc}") from exc
+
+        def duration_unit(function_name, unit_seconds):
+            def convert(_vm, *args):
+                _arity(function_name, args, 1)
+                result = duration_value(args[0]) * unit_seconds
+                if not math.isfinite(result):
+                    raise _error("La duración supera el rango numérico")
+                return result
+            return convert
 
         def format_date(_vm, *args):
             _arity("format_date", args, 1, 2)
@@ -970,6 +1236,15 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
         return {"now": _wrap("now", now), "timestamp": _wrap("timestamp", now),
                 "now_utc": _wrap("now_utc", now_utc), "format_date_utc": _wrap("format_date_utc", format_date_utc),
                 "sleep": _wrap("sleep", sleep), "format_date": _wrap("format_date", format_date),
+                "now_in_timezone": _wrap("now_in_timezone", now_in_timezone),
+                "parse_iso": _wrap("parse_iso", parse_iso),
+                "to_timezone": _wrap("to_timezone", to_timezone),
+                "add_seconds": _wrap("add_seconds", add_seconds),
+                "duration_seconds": _wrap("duration_seconds", duration_seconds),
+                "seconds": _wrap("seconds", duration_unit("seconds", 1)),
+                "minutes": _wrap("minutes", duration_unit("minutes", 60)),
+                "hours": _wrap("hours", duration_unit("hours", 3600)),
+                "days": _wrap("days", duration_unit("days", 86400)),
                 "get_year": current_part("year"), "get_month": current_part("month"),
                 "get_day": current_part("day"), "get_hour": current_part("hour"),
                 "get_minute": current_part("minute"), "get_second": current_part("second"),

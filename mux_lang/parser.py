@@ -78,6 +78,7 @@ class Parser:
             line=token.line if token else None,
             column=token.column if token else None,
             incomplete=token is None,
+            code="MUX1002",
         )
 
     def expect(self, token_type: str) -> Token:
@@ -121,9 +122,9 @@ class Parser:
             "continue", "assert", "show", "say", "wait", "exit", "pass", "loop",
             "until", "unless", "each", "expr_stmt", "import", "from_import", "let",
             "assign", "index_assign", "slice_assign", "attr_assign", "global", "nonlocal", "number",
-            "string", "bool", "null", "var", "list", "tuple", "dict", "index", "attr",
+            "string", "bool", "null", "var", "list", "list_comp", "tuple", "dict", "dict_comp", "index", "attr",
             "method", "unary", "binop", "builtin", "call",
-            "named_arg", "pattern_name", "pattern_list", "destructure_let",
+            "named_arg", "comp_var", "pattern_name", "pattern_list", "pattern_dict", "destructure_let",
             "destructure_assign", "slice",
         }
         old_source_map = self.source_map
@@ -295,7 +296,7 @@ class Parser:
 
     def parse_let(self):
         self.advance()
-        if self.current() and self.current().type in ("LBRACKET", "LPAREN"):
+        if self.current() and self.current().type in ("LBRACKET", "LPAREN", "LBRACE"):
             pattern = self.parse_pattern()
             self.expect("ASSIGN")
             return ("destructure_let", pattern, self.parse_expression())
@@ -313,8 +314,49 @@ class Parser:
             self.node_spans[id(pattern)] = self._span_from_tokens(token, token)
             self.source_map[id(pattern)] = token
             return pattern
+        if token.type == "LBRACE":
+            opening = self.advance()
+            entries = []
+            seen_keys = set()
+            if self.current() and self.current().type != "RBRACE":
+                while True:
+                    key_token = self.current()
+                    if key_token.type == "ID":
+                        key = self.advance().value
+                    elif key_token.type == "STRING":
+                        key = ast.literal_eval(self.advance().value)
+                    else:
+                        raise self.error("La clave del patrón debe ser un nombre o string", key_token)
+                    try:
+                        if key in seen_keys:
+                            raise self.error(f"Clave repetida en el patrón: {key!r}", key_token)
+                        seen_keys.add(key)
+                    except TypeError as exc:
+                        raise self.error("La clave del patrón debe ser inmutable", key_token) from exc
+                    if self.current() and self.current().type == "COLON":
+                        self.advance()
+                        child = self.parse_pattern()
+                    elif key_token.type == "ID":
+                        child = ("pattern_name", key)
+                        self.node_spans[id(child)] = self._span_from_tokens(key_token, key_token)
+                        self.source_map[id(child)] = key_token
+                    else:
+                        raise self.error("Una clave string necesita un patrón después de ':'", key_token)
+                    entries.append((key, child))
+                    if not self.current() or self.current().type != "COMMA":
+                        break
+                    self.advance()
+                    if self.current() and self.current().type == "RBRACE":
+                        break
+            if not entries:
+                raise self.error("El patrón de diccionario no puede estar vacío", opening)
+            closing = self.expect("RBRACE")
+            pattern = ("pattern_dict", entries)
+            self.node_spans[id(pattern)] = self._span_from_tokens(opening, closing)
+            self.source_map[id(pattern)] = opening
+            return pattern
         if token.type not in ("LBRACKET", "LPAREN"):
-            raise self.error("El patrón solo admite nombres dentro de una lista o tupla", token)
+            raise self.error("El patrón solo admite nombres y patrones de lista, tupla o diccionario", token)
         closing_type = "RBRACKET" if token.type == "LBRACKET" else "RPAREN"
         opening = self.advance()
         items = []
@@ -349,6 +391,25 @@ class Parser:
             if any(child is None for child in children):
                 return None
             pattern = ("pattern_list", children)
+        elif expression[0] == "dict" and expression[1]:
+            entries = []
+            seen_keys = set()
+            for key_expression, value_expression in expression[1]:
+                if key_expression[0] in ("string", "number", "bool", "null", "var"):
+                    key = key_expression[1]
+                else:
+                    return None
+                try:
+                    if key in seen_keys:
+                        return None
+                    seen_keys.add(key)
+                except TypeError:
+                    return None
+                child = self._expression_pattern(value_expression)
+                if child is None:
+                    return None
+                entries.append((key, child))
+            pattern = ("pattern_dict", entries)
         else:
             return None
         span = self.expression_spans.get(id(expression))
@@ -759,9 +820,35 @@ class Parser:
 
     def parse_list(self):
         self.expect("LBRACKET")
-        elements = self._parse_arguments("RBRACKET")
+        elements = []
+        if self.current() and self.current().type != "RBRACKET":
+            first = self.parse_expression()
+            if self.current() and self.current().type == "FOR":
+                variable, iterable, condition = self._parse_comprehension_tail()
+                self.expect("RBRACKET")
+                return ("list_comp", first, variable, iterable, condition)
+            elements.append(first)
+            while self.current() and self.current().type == "COMMA":
+                self.advance()
+                if self.current() and self.current().type == "RBRACKET":
+                    break
+                elements.append(self.parse_expression())
         self.expect("RBRACKET")
         return ("list", elements)
+
+    def _parse_comprehension_tail(self):
+        self.expect("FOR")
+        token = self.expect("ID")
+        variable = ("comp_var", token.value)
+        self.node_spans[id(variable)] = self._span_from_tokens(token, token)
+        self.source_map[id(variable)] = token
+        self.expect("IN")
+        iterable = self.parse_expression()
+        condition = None
+        if self.current() and self.current().type == "IF":
+            self.advance()
+            condition = self.parse_expression()
+        return variable, iterable, condition
 
     def parse_dict(self):
         self.expect("LBRACE")
@@ -771,6 +858,10 @@ class Parser:
                 key = self.parse_expression()
                 self.expect("COLON")
                 value = self.parse_expression()
+                if self.current() and self.current().type == "FOR":
+                    variable, iterable, condition = self._parse_comprehension_tail()
+                    self.expect("RBRACE")
+                    return ("dict_comp", key, value, variable, iterable, condition)
                 pairs.append((key, value))
                 if not self.current() or self.current().type != "COMMA":
                     break

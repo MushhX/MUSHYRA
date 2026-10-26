@@ -1,5 +1,6 @@
 """Small, deterministic static checks for Mux ASTs."""
 
+import difflib
 from dataclasses import dataclass
 
 
@@ -19,15 +20,37 @@ class LintDiagnostic:
         }
 
 
-def _walk(value):
+def _walk(value, bound_names=frozenset()):
     if isinstance(value, (list, tuple)):
         if value and isinstance(value[0], str):
+            kind = value[0]
+            if kind == "var" and len(value) > 1 and value[1] in bound_names:
+                return
+            if kind == "call" and len(value) > 2 and value[1] in bound_names:
+                for child in value[2:]:
+                    yield from _walk(child, bound_names)
+                return
             yield value
+            if kind == "list_comp" and len(value) > 4:
+                variable = value[2][1]
+                nested_bound = bound_names | {variable}
+                yield from _walk(value[3], bound_names)
+                yield from _walk(value[1], nested_bound)
+                yield from _walk(value[4], nested_bound)
+                return
+            if kind == "dict_comp" and len(value) > 5:
+                variable = value[3][1]
+                nested_bound = bound_names | {variable}
+                yield from _walk(value[4], bound_names)
+                yield from _walk(value[1], nested_bound)
+                yield from _walk(value[2], nested_bound)
+                yield from _walk(value[5], nested_bound)
+                return
             for child in value[1:]:
-                yield from _walk(child)
+                yield from _walk(child, bound_names)
         else:
             for child in value:
-                yield from _walk(child)
+                yield from _walk(child, bound_names)
 
 
 def lint_ast(tree):
@@ -139,14 +162,20 @@ def lint_ast(tree):
         elif pattern[0] == "pattern_list":
             for child in pattern[1]:
                 yield from pattern_names(child)
+        elif pattern[0] == "pattern_dict":
+            for _key, child in pattern[1]:
+                yield from pattern_names(child)
 
     declared, imported = bindings(tree)
     declared.add("args")
+    known_names = declared | {"input", "ask", "len", "type", "str", "int", "float", "range"}
     if not any(node[0] == "import" and not node[2] for node in all_nodes):
         for node in all_nodes:
             if node[0] == "var" and node[1] not in declared:
+                close = difflib.get_close_matches(node[1], known_names, n=1, cutoff=0.78)
+                hint = f"; quizá querías decir {close[0]!r}" if close else ""
                 diagnostics.append(LintDiagnostic(
-                    "MUX102", f"Nombre no declarado: {node[1]!r}", severity="error",
+                    "MUX102", f"Nombre no declarado: {node[1]!r}{hint}", severity="error",
                     span=getattr(node, "span", None),
                 ))
     for name in sorted(declared - used_names):

@@ -1,0 +1,9 @@
+import time as tiempo
+
+let salida = "2026-10-26T09:00:00+00:00"
+let madrid = tiempo.to_timezone(salida, "Europe/Madrid")
+let despues = tiempo.add_seconds(salida, tiempo.minutes(90))
+
+print(madrid)
+print(despues)
+print(tiempo.duration_seconds(salida, despues))

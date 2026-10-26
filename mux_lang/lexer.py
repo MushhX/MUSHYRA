@@ -33,13 +33,15 @@ class MuxError(Exception):
 
     def __init__(self, message: str, path: Optional[str] = None,
                  line: Optional[int] = None, column: Optional[int] = None,
-                 cause: Optional[BaseException] = None, incomplete: bool = False):
+                 cause: Optional[BaseException] = None, incomplete: bool = False,
+                 code: str = "MUX000"):
         self.message = message
         self.path = path
         self.line = line
         self.column = column
         self.cause = cause
         self.incomplete = incomplete
+        self.code = code
         self.contexts = []
         super().__init__(self.format())
 
@@ -75,6 +77,7 @@ class MuxError(Exception):
         """Return stable machine-readable diagnostic data."""
         return {
             "message": self.message,
+            "code": self.code,
             "path": self.path,
             "line": self.line,
             "column": self.column,
@@ -173,7 +176,8 @@ class Lexer:
         self.code = code.replace("\r\n", "\n").replace("\r", "\n")
         self.path = path
         if len(self.code) > self.MAX_SOURCE_CHARACTERS:
-            raise MuxError("El código supera el límite de 10 Mi caracteres", path)
+            raise MuxError("El código supera el límite de 10 Mi caracteres", path,
+                           code="MUX1001")
 
     def tokenize(self) -> List[Token]:
         tokens = []
@@ -185,17 +189,17 @@ class Lexer:
                 if char.isdigit():
                     invalid_number = re.match(r"\d[\w.]*", self.code[pos:])
                     if invalid_number:
-                        raise MuxError("Literal numérico no válido", self.path, line, column)
+                        raise MuxError("Literal numérico no válido", self.path, line, column,
+                                       code="MUX1001")
                 if char == '"':
                     line_end = self.code.find("\n", pos)
                     if line_end < 0:
                         line_end = len(self.code)
                     closing_quote = self.code.find('"', pos + 1, line_end)
                     message = "Cadena sin cerrar" if closing_quote < 0 else "Escape no válido en una cadena"
-                    raise MuxError(message, self.path, line, column)
-                raise MuxError(
-                    f"Carácter inesperado {char!r}", self.path, line, column
-                )
+                    raise MuxError(message, self.path, line, column, code="MUX1001")
+                raise MuxError(f"Carácter inesperado {char!r}", self.path, line, column,
+                               code="MUX1001")
             token_type = match.lastgroup
             value = match.group(token_type)
             if token_type == "ID":
@@ -203,7 +207,8 @@ class Lexer:
             start_line, start_column = line, column
             if token_type not in ("SKIP", "COMMENT"):
                 if len(tokens) >= self.MAX_TOKENS:
-                    raise MuxError(f"El archivo supera el límite de {self.MAX_TOKENS} tokens", self.path, line, column)
+                    raise MuxError(f"El archivo supera el límite de {self.MAX_TOKENS} tokens",
+                                   self.path, line, column, code="MUX1001")
                 tokens.append(Token(token_type, value, start_line, start_column, pos, match.end()))
             consumed = self.code[pos:match.end()]
             if token_type == "NEWLINE":

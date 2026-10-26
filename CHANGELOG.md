@@ -10,8 +10,14 @@
 - Servidor LSP integrado para VS Code con diagnósticos, finalización, navegación y símbolos del documento.
 - Comando `mux init` para generar un proyecto mínimo sin reemplazar archivos existentes.
 - Parámetros por defecto, argumentos con nombre y argumentos variádicos en funciones Mux.
-- Tuplas inmutables, desempaquetado con patrones anidados y slices de secuencias, incluido el reemplazo de slices en listas.
+- Tuplas inmutables, desempaquetado de secuencias y diccionarios con patrones anidados y slices, incluido el reemplazo de slices en listas.
 - Módulo `sequence` con `map`, `filter`, `enumerate`, `zip`, `any`, `all` y `sum`, con callbacks Mux y límites de pasos y memoria.
+- Comprehensions de listas y diccionarios con ámbito temporal y filtro opcional; patrones de desempaquetado para diccionarios.
+- Breakpoints condicionales, expresiones observadas e inspección de ámbitos y módulos en el depurador.
+- Plantillas `app` y `library` para `mux init`.
+- Módulos `path`, `csv` y `toml` con límites de tamaño y respeto de `--sandbox-root`.
+- Módulo `time` con parsing ISO-8601, conversión IANA, aritmética de fechas y unidades de duración.
+- Códigos de diagnóstico estables para lexer, parser, resolver e intérprete, documentados en `DIAGNOSTICS.md`.
 - Benchmark para bucles, llamadas y colecciones; `--time` informa pasos y rendimiento observado.
 - Paquetes firmados Ed25519, índices configurables, hash por archivo, creación de ZIP, lockfiles y auditoría.
 - EBNF, guía de seguridad, referencia ampliada, benchmark, soporte de VS Code y CI multiplataforma.

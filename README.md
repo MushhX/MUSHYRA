@@ -52,13 +52,15 @@ Los errores muestran archivo, línea y columna, y las trazas incluyen ubicación
 
 Para usar diagnósticos y navegación en VS Code, instala Mux y abre `editors/vscode` como extensión de desarrollo. El servidor integrado se inicia con `mux --lsp`; no requiere dependencias de terceros.
 
-Empieza un proyecto con `mux init mi-proyecto` y ejecútalo con `mux mi-proyecto/main.mux`.
+Empieza una aplicación con `mux init mi-proyecto --template app` o una biblioteca con `mux init mi-biblioteca --template library`; ejecuta el ejemplo con `mux mi-proyecto/main.mux`.
 
 Consulta [CONFIGURATION.md](CONFIGURATION.md) para las claves y prioridades.
 
+Los códigos de error y sus categorías están en [DIAGNOSTICS.md](DIAGNOSTICS.md).
+
 ## Módulos estándar
 
-Los módulos estándar son implementaciones nativas del intérprete; no devuelven datos simulados. Incluyen `math`, `random`, `sequence`, `http`, `filesystem`, `json`, `crypto`, `regex`, `strings`, `time`, `database` (SQLite), `email` (SMTP), `console`, `env`, `web` (Flask), `discord_bot`, `telegram_bot` y `whatsapp` (Twilio). Flask, los SDK de bots, Twilio y `cryptography` son dependencias opcionales. Consulta [STDLIB_REFERENCE.md](STDLIB_REFERENCE.md) para firmas, límites y configuración.
+Los módulos estándar son implementaciones nativas del intérprete; no devuelven datos simulados. Incluyen `math`, `random`, `sequence`, `path`, `csv`, `toml`, `http`, `filesystem`, `json`, `crypto`, `regex`, `strings`, `time`, `database` (SQLite), `email` (SMTP), `console`, `env`, `web` (Flask), `discord_bot`, `telegram_bot` y `whatsapp` (Twilio). Flask, los SDK de bots, Twilio, `tomli` para Python anterior a 3.11 y `cryptography` son dependencias opcionales. Consulta [STDLIB_REFERENCE.md](STDLIB_REFERENCE.md) para firmas, límites y configuración.
 
 ## Paquetes Mux
 

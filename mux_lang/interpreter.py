@@ -264,6 +264,7 @@ class Interpreter:
             line=token.line if token else None,
             column=token.column if token else None,
             cause=cause,
+            code="MUX3001",
         )
 
     def _tick(self):
@@ -334,8 +335,8 @@ class Interpreter:
 
     def _check_native_module(self, module):
         if self.sandbox_mode and module not in {
-                "math", "random", "strings", "json", "regex", "time", "console",
-                "filesystem", "database", "sequence"}:
+                "math", "random", "sequence", "path", "strings", "json", "toml", "csv",
+                "regex", "time", "console", "filesystem", "database"}:
             raise self._located_error(f"El módulo nativo {module!r} está deshabilitado en modo sandbox")
 
     @property
@@ -435,6 +436,8 @@ class Interpreter:
                 self._tick()
             return self._eval_statement(stmt)
         except MuxError as exc:
+            if exc.code == "MUX000":
+                exc.code = "MUX3001"
             span = getattr(stmt, "span", None)
             token = self.source_map.get(id(stmt))
             if span is not None:
@@ -687,11 +690,57 @@ class Interpreter:
             raise MuxError("Los límites y el paso de un slice deben ser enteros")
         return value
 
+    @staticmethod
+    def _comprehension_iterable(value):
+        if not isinstance(value, (list, tuple, dict, str, range)):
+            raise MuxError("La comprensión requiere una lista, tupla, diccionario, string o range")
+        try:
+            size = len(value)
+        except OverflowError as exc:
+            raise MuxError("La comprensión supera el tamaño máximo permitido") from exc
+        if size > MAX_COLLECTION_ITEMS:
+            raise MuxError(f"Una comprensión no puede recorrer más de {MAX_COLLECTION_ITEMS} elementos")
+        return value
+
+    def _eval_comprehension(self, variable, item, expressions, condition):
+        frame = {variable: item}
+        parent_environment = self.environments[-1] if self.environments else ()
+        global_scope = self.global_scope_stack[-1] if self.global_scope_stack else self.globals
+        self.environments.append((frame,) + tuple(parent_environment))
+        self.declarations.append((set(), set()))
+        self.global_scope_stack.append(global_scope)
+        self.local_names_stack.append({variable})
+        self.free_bindings_stack.append({})
+        self.resolved_globals_stack.append(frozenset())
+        try:
+            if condition is not None and not ValueSemantics.truthy(self.eval_expression(condition)):
+                return False, None
+            return True, [self.eval_expression(expression) for expression in expressions]
+        finally:
+            self.resolved_globals_stack.pop()
+            self.free_bindings_stack.pop()
+            self.local_names_stack.pop()
+            self.global_scope_stack.pop()
+            self.declarations.pop()
+            self.environments.pop()
+
     @classmethod
     def _collect_pattern_bindings(cls, pattern, value, bindings):
         kind = pattern[0]
         if kind == "pattern_name":
             bindings.append((pattern[1], value))
+            return
+        if kind == "pattern_dict":
+            if not isinstance(value, dict):
+                raise MuxError("El patrón de diccionario requiere un diccionario")
+            for key, child in pattern[1]:
+                try:
+                    item = value[key]
+                except KeyError as exc:
+                    raise MuxError(f"Falta la clave {key!r} requerida por el patrón") from exc
+                except TypeError as exc:
+                    raise MuxError(f"La clave {key!r} no se puede buscar en el diccionario") from exc
+                cls._collect_pattern_bindings(child, item, bindings)
             return
         if kind != "pattern_list":
             raise MuxError("Patrón de asignación no reconocido")
@@ -742,6 +791,20 @@ class Interpreter:
                 result = [self.eval_expression(item) for item in expr[1]]
                 self._charge_allocation(64 + 8 * len(result))
                 return result
+            if kind == "list_comp":
+                iterable = self._comprehension_iterable(self.eval_expression(expr[3]))
+                variable = expr[2][1]
+                result = []
+                self._charge_allocation(64)
+                for item in iterable:
+                    self._tick()
+                    include, values = self._eval_comprehension(variable, item, (expr[1],), expr[4])
+                    if include:
+                        if len(result) >= MAX_COLLECTION_ITEMS:
+                            raise MuxError(f"Una lista no puede superar {MAX_COLLECTION_ITEMS} elementos")
+                        self._charge_allocation(8)
+                        result.append(values[0])
+                return result
             if kind == "tuple":
                 if len(expr[1]) > MAX_COLLECTION_ITEMS:
                     raise MuxError(f"Una tupla no puede superar {MAX_COLLECTION_ITEMS} elementos")
@@ -757,6 +820,19 @@ class Interpreter:
                     self._set_dict_item(result, key, self.eval_expression(value_expr), charge=False)
                 self._charge_allocation(128 + 64 * len(result))
                 return result
+            if kind == "dict_comp":
+                iterable = self._comprehension_iterable(self.eval_expression(expr[4]))
+                variable = expr[3][1]
+                result = {}
+                self._charge_allocation(128)
+                for item in iterable:
+                    self._tick()
+                    include, values = self._eval_comprehension(
+                        variable, item, (expr[1], expr[2]), expr[5]
+                    )
+                    if include:
+                        self._set_dict_item(result, values[0], values[1])
+                return result
             if kind == "index":
                 obj = self.eval_expression(expr[1])
                 index = self.eval_expression(expr[2])
@@ -771,7 +847,7 @@ class Interpreter:
                     if index < 0 or index >= len(obj):
                         raise MuxError(f"Índice {index} fuera de rango")
                     return obj[index]
-                raise MuxError("Solo se puede indexar listas, strings y diccionarios")
+                raise MuxError("Solo se pueden indexar secuencias y diccionarios")
             if kind == "slice":
                 obj = self.eval_expression(expr[1])
                 if not isinstance(obj, (list, tuple, str, range)):

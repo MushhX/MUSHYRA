@@ -9,6 +9,7 @@ Esta referencia describe la sintaxis que implementa el parser. Las columnas de l
 - Las cadenas usan comillas dobles y escapes `\"`, `\\`, `\b`, `\n`, `\r`, `\t`, `\f` y `\uXXXX`. No admiten saltos de línea dentro de una cadena.
 - `#` inicia un comentario hasta el fin de línea.
 - Los saltos de línea separan declaraciones. Dentro de `()`, `[]` y `{}` se pueden partir expresiones en varias líneas.
+- Los identificadores se normalizan a NFC; el contenido de strings no se normaliza. `len`, índices y slices de strings cuentan puntos de código Unicode, no grafemas visibles, por lo que un emoji combinado puede ocupar varios índices.
 
 ## Gramática EBNF
 
@@ -26,7 +27,9 @@ target        = identifier | pattern | postfix "[" expression "]"
               | postfix "[" [ expression ] ":" [ expression ] [ ":" [ expression ] ] "]"
               | postfix "." identifier ;
 pattern       = identifier | "[" pattern { "," pattern } [ "," ] "]"
-              | "(" pattern ")" | "(" pattern "," [ pattern { "," pattern } [ "," ] ] ")" ;
+              | "(" pattern ")" | "(" pattern "," [ pattern { "," pattern } [ "," ] ] ")"
+              | "{" pattern_entry { "," pattern_entry } [ "," ] "}" ;
+pattern_entry = identifier [ ":" pattern ] | string ":" pattern ;
 print         = "print" "(" expression ")" ;
 conditional   = "if" expression block { "elif" expression block }
                 [ "else" block ] "end"
@@ -65,8 +68,9 @@ primary       = number | string | boolean | "null" | identifier [ arguments ]
 tuple         = "(" ")" | "(" expression "," [ expression { "," expression } [ "," ] ] ")" ;
 arguments     = "(" [ argument { "," argument } [ "," ] ] ")" ;
 argument      = identifier "=" expression | expression ;
-list          = "[" [ expression { "," expression } [ "," ] ] "]" ;
-dictionary    = "{" [ expression ":" expression { "," expression ":" expression } [ "," ] ] "}" ;
+list          = "[" [ expression { "," expression } [ "," ] | expression "for" identifier "in" expression [ "if" expression ] ] "]" ;
+dictionary    = "{" [ expression ":" expression { "," expression ":" expression } [ "," ]
+              | expression ":" expression "for" identifier "in" expression [ "if" expression ] ] "}" ;
 builtin       = ("input" | "ask" | "len" | "type" | "str" | "int" | "float" | "range") arguments ;
 boolean       = "true" | "false" ;
 ```
@@ -79,6 +83,6 @@ Functions use lexical bindings. A name assigned anywhere in a function is local 
 
 Functions accept positional and named arguments, trailing default parameters, and one final variadic parameter. For example, `func greet(name, prefix="Hola", *extras)` can be called as `greet("Ana")`, `greet(name="Ana")`, or `greet("Ana", "Buenas", 1, 2)`, where `extras` is a list. Required parameters must precede parameters with defaults and the variadic parameter; positional arguments must precede named arguments; duplicate, unknown, or missing arguments are errors. Defaults are evaluated once when the function definition executes. Native functions continue to accept positional arguments only. Calls to variables use `name(...)`; module functions use `module.function(...)`. Statement separators are newlines, and every block closes with `end`.
 
-Parentheses group expressions; a comma creates an immutable tuple, including the one-element form `(value,)` and empty form `()`.
+Parentheses group expressions; a comma creates an immutable tuple, including the one-element form `(value,)` and empty form `()`. List and dictionary comprehensions evaluate their iterable once, bind the iteration variable in a temporary local scope, and optionally filter each item with `if`; for example, `[value * 2 for value in numbers if value > 0]` and `{value: value * 2 for value in numbers}`. Comprehensions accept at most one iteration clause and are limited to one million input elements.
 
-Sequence destructuring binds values after the complete pattern has been checked: `let [first, [second, third]] = values` or `let (first, second) = pair`. Assignment uses the same nested patterns without `let`. A pattern must match the sequence length exactly; lists, tuples, strings, and ranges can be unpacked. Slices use Python-style exclusive endpoints on lists, tuples, strings, and ranges, such as `items[1:4]`, `text[::-1]`, or `values[:limit:2]`. A slice can be assigned on the left side of an assignment only when the target is a list; the replacement must be a sequence, and extended slices must have the same length as the selected elements.
+Sequence destructuring binds values after the complete pattern has been checked: `let [first, [second, third]] = values` or `let (first, second) = pair`. Dictionary patterns select named keys and can rename them: `let {name: person, age} = record` binds `record["name"]` to `person` and `record["age"]` to `age`; extra keys are allowed, but every requested key must exist. Assignment uses the same nested patterns without `let`. A sequence pattern must match its length exactly; lists, tuples, strings, and ranges can be unpacked. Slices use Python-style exclusive endpoints on lists, tuples, strings, and ranges, such as `items[1:4]`, `text[::-1]`, or `values[:limit:2]`. A slice can be assigned on the left side of an assignment only when the target is a list; the replacement must be a sequence, and extended slices must have the same length as the selected elements.

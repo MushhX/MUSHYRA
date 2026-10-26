@@ -89,6 +89,8 @@ def _init_project(argv):
     init_parser.add_argument("directory", nargs="?", default="mux-project",
                              help="Directorio nuevo o vacío donde crear el proyecto")
     init_parser.add_argument("--name", help="Nombre mostrado en el README generado")
+    init_parser.add_argument("--template", choices=("app", "library"), default="app",
+                             help="Plantilla inicial: aplicación o biblioteca Mux")
     args = init_parser.parse_args(argv)
     root = Path(args.directory).expanduser()
     project_name = args.name or root.name or "Mux"
@@ -96,13 +98,28 @@ def _init_project(argv):
         init_parser.error("--name debe ser texto no vacío en una línea")
     try:
         root.mkdir(parents=True, exist_ok=True)
-        targets = {
-            root / "main.mux": f'# Proyecto {project_name}\nprint("Hola desde Mux")\n',
-            root / "README.md": (
-                f"# {project_name}\n\n"
-                "Ejecuta el programa principal con `mux main.mux`.\n"
-            ),
-        }
+        if args.template == "library":
+            main_source = ('import library as lib\n'
+                           'print(lib.saludar("Mux"))\n')
+            library_source = ('func saludar(nombre)\n'
+                              '    return "Hola, " + str(nombre)\n'
+                              'end\n')
+            readme = (f"# {project_name}\n\n"
+                      "Plantilla de biblioteca Mux con un módulo y un programa de ejemplo.\n"
+                      "Ejecuta el ejemplo con `mux main.mux`.\n")
+            targets = {
+                root / "main.mux": main_source,
+                root / "library.mux": library_source,
+                root / "README.md": readme,
+            }
+        else:
+            targets = {
+                root / "main.mux": f'# Proyecto {project_name}\nprint("Hola desde Mux")\n',
+                root / "README.md": (
+                    f"# {project_name}\n\n"
+                    "Ejecuta el programa principal con `mux main.mux`.\n"
+                ),
+            }
         existing = [path.name for path in targets if path.exists()]
         if existing:
             raise MuxError(f"No se sobrescribieron archivos existentes: {', '.join(existing)}",
@@ -213,7 +230,7 @@ def _show_error(error, source, filename, debug=False, diagnostics_format="text")
         diagnostic["source_line"] = lines[line_number - 1] if line_number and 1 <= line_number <= len(lines) else None
         print(json.dumps(diagnostic, ensure_ascii=False), file=sys.stderr)
     else:
-        print(f"mux: {error}", file=sys.stderr)
+        print(f"mux[{getattr(error, 'code', 'MUX000')}]: {error}", file=sys.stderr)
         if getattr(error, "line", None):
             location_path = getattr(error, "path", None)
             location_source = source

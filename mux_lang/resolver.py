@@ -1,5 +1,6 @@
 """Static lexical-scope analysis for Mux functions."""
 
+import difflib
 from dataclasses import dataclass
 
 from .lexer import MuxError
@@ -33,6 +34,9 @@ def _pattern_names(pattern):
         yield pattern[1]
     elif pattern[0] == "pattern_list":
         for child in pattern[1]:
+            yield from _pattern_names(child)
+    elif pattern[0] == "pattern_dict":
+        for _key, child in pattern[1]:
             yield from _pattern_names(child)
 
 
@@ -114,26 +118,43 @@ def _statement_expressions(statement):
     return ()
 
 
-def _expression_names(expression):
+def _expression_names(expression, bound_names=frozenset()):
     if expression is None or not isinstance(expression, tuple) or not expression:
         return
     kind = expression[0]
     if kind == "var" and len(expression) > 1:
-        yield expression[1], expression
+        if expression[1] not in bound_names:
+            yield expression[1], expression
+        return
+    if kind == "list_comp" and len(expression) > 4:
+        variable = expression[2][1]
+        nested_bound = bound_names | {variable}
+        yield from _expression_names(expression[3], bound_names)
+        yield from _expression_names(expression[1], nested_bound)
+        yield from _expression_names(expression[4], nested_bound)
+        return
+    if kind == "dict_comp" and len(expression) > 5:
+        variable = expression[3][1]
+        nested_bound = bound_names | {variable}
+        yield from _expression_names(expression[4], bound_names)
+        yield from _expression_names(expression[1], nested_bound)
+        yield from _expression_names(expression[2], nested_bound)
+        yield from _expression_names(expression[5], nested_bound)
         return
     if kind == "call" and len(expression) > 2:
-        yield expression[1], expression
+        if expression[1] not in bound_names:
+            yield expression[1], expression
         for arg in expression[2]:
-            yield from _expression_names(arg)
+            yield from _expression_names(arg, bound_names)
         return
     items = expression[1:] if isinstance(kind, str) else expression
     for item in items:
         if isinstance(item, tuple):
-            yield from _expression_names(item)
+            yield from _expression_names(item, bound_names)
         elif isinstance(item, list):
             for child in item:
                 if isinstance(child, tuple):
-                    yield from _expression_names(child)
+                    yield from _expression_names(child, bound_names)
 
 
 def _function_references(statements):
@@ -197,7 +218,8 @@ def _location_error(message, filename, statement):
     span = getattr(statement, "span", None)
     return MuxError(message, filename,
                     span.start_line if span else None,
-                    span.start_column if span else None)
+                    span.start_column if span else None,
+                    code="MUX2001")
 
 
 def analyze_program(statements, filename="<stdin>", initial_names=()):
@@ -210,8 +232,11 @@ def analyze_program(statements, filename="<stdin>", initial_names=()):
         missing = sorted(name for name in module_references
                          if name not in module_names and name not in builtins)
         if missing:
+            close = difflib.get_close_matches(missing[0], module_names | builtins,
+                                              n=1, cutoff=0.78)
+            hint = f"; quizá querías decir {close[0]!r}" if close else ""
             raise _location_error(
-                f"Variable {missing[0]!r} no está definida en ningún ámbito conocido",
+                f"Variable {missing[0]!r} no está definida en ningún ámbito conocido{hint}",
                 filename, module_references[missing[0]],
             )
 
