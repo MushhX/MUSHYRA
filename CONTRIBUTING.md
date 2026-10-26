@@ -5,20 +5,20 @@ Gracias por mejorar MUSHYRA. Los cambios deben mantener la gramática pequeña, 
 ## Preparar el entorno
 
 ```console
-git clone https://github.com/MushhX/Mux.git
-cd Mux
+git clone https://github.com/MushhX/MUSHYRA.git
+cd MUSHYRA
 python -m pip install -e .
 myr examples/hola_mundo.myr
 ```
 
 ## Estructura
 
-- `mux_lang/lexer.py`: tokens y ubicaciones de origen.
-- `mux_lang/parser.py`: gramática y AST.
-- `mux_lang/interpreter.py`: evaluación, scopes y carga de módulos.
-- `mux_lang/native_stdlib.py`: módulos nativos.
-- `mux_lang/cli.py`: CLI y REPL.
-- `mux_lang/package_manager.py`: instalación local y ZIP verificado.
+- `mushyra/lexer.py`: tokens y ubicaciones de origen.
+- `mushyra/parser.py`: gramática y AST.
+- `mushyra/interpreter.py`: evaluación, scopes y carga de módulos.
+- `mushyra/native_stdlib.py`: módulos nativos.
+- `mushyra/cli.py`: CLI y REPL.
+- `mushyra/package_manager.py`: instalación local y ZIP verificado.
 - `examples/`: programas de muestra.
 - `build_*.py`, `create_*.py`: empaquetado y distribución.
 

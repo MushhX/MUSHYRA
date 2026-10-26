@@ -23,7 +23,7 @@ MUSHYRA incluye comandos únicos que hacen la programación más expresiva y nat
 
 Mostrar un valor con emoji 👁️
 
-```mux
+```myr
 show("Hola Mundo")
 # 👁️ Hola Mundo
 
@@ -46,7 +46,7 @@ show(lista)
 
 Decir un mensaje con emoji 💬
 
-```mux
+```myr
 say("¡Hola!")
 # 💬 ¡Hola!
 
@@ -65,7 +65,7 @@ say("Proceso completado")
 
 Preguntar al usuario con emoji ❓
 
-```mux
+```myr
 let nombre = ask("¿Cómo te llamas?")
 # ❓ ¿Cómo te llamas? _
 
@@ -83,7 +83,7 @@ let edad_num = int(edad)
 
 Esperar N segundos; informa antes de pausar con el emoji ⏳.
 
-```mux
+```myr
 say("Iniciando proceso...")
 wait(2)
 say("Proceso completado")
@@ -102,7 +102,7 @@ say("Proceso completado")
 
 Verificar condiciones con mensajes claros
 
-```mux
+```myr
 let edad = 25
 assert(edad >= 18, "Debe ser mayor de edad")
 # ✓ Pasa
@@ -123,7 +123,7 @@ assert(edad >= 18, "Debe ser mayor de edad")
 
 Ejecutar código si la condición es FALSA (inverso de if)
 
-```mux
+```myr
 let llueve = false
 unless llueve
     say("¡Vamos al parque!")
@@ -138,7 +138,7 @@ end
 ```
 
 **Equivalente:**
-```mux
+```myr
 # unless condicion
 if !condicion
 ```
@@ -149,7 +149,7 @@ if !condicion
 
 Repetir hasta que la condición sea VERDADERA (inverso de while)
 
-```mux
+```myr
 let contador = 0
 until contador >= 5
     show(contador)
@@ -163,7 +163,7 @@ end
 ```
 
 **Equivalente:**
-```mux
+```myr
 # until condicion
 while !condicion
 ```
@@ -174,7 +174,7 @@ while !condicion
 
 Iterar sobre elementos (alias más natural de for)
 
-```mux
+```myr
 let frutas = ["manzana", "banana", "naranja"]
 each fruta in frutas
     say("Me gusta la " + fruta)
@@ -185,7 +185,7 @@ end
 ```
 
 **Equivalente:**
-```mux
+```myr
 # each item in lista
 for item in lista
 ```
@@ -196,7 +196,7 @@ for item in lista
 
 Bucle infinito (hasta break)
 
-```mux
+```myr
 let contador = 0
 loop
     show(contador)
@@ -219,7 +219,7 @@ end
 
 No ejecutar ninguna acción y continuar con la siguiente instrucción.
 
-```mux
+```myr
 let x = 10
 if x > 5
     pass  # No-op mientras no haya lógica que ejecutar
@@ -241,7 +241,7 @@ end
 
 Salir del programa con código de salida
 
-```mux
+```myr
 exit()        # Salir con código 0
 exit(0)       # Salir con código 0 (éxito)
 exit(1)       # Salir con código 1 (error)
@@ -260,7 +260,7 @@ end
 
 ### Validación de Entrada
 
-```mux
+```myr
 let edad = ask("¿Cuántos años tienes?")
 let edad_num = int(edad)
 
@@ -277,7 +277,7 @@ say("¡Bienvenido!")
 
 ### Procesamiento con Feedback
 
-```mux
+```myr
 let archivos = ["doc1.txt", "doc2.txt", "doc3.txt"]
 
 each archivo in archivos
@@ -291,7 +291,7 @@ say("¡Todos los archivos procesados!")
 
 ### Menú Interactivo
 
-```mux
+```myr
 loop
     print("")
     print("=== Menú ===")
@@ -317,7 +317,7 @@ end
 
 ### Validación con Assert
 
-```mux
+```myr
 func dividir(a, b)
     assert(b != 0, "No se puede dividir por cero")
     return a / b

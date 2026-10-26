@@ -5,8 +5,8 @@ El repositorio no versiona binarios precompilados ni hashes verificados de una r
 ## Código fuente
 
 ```console
-git clone https://github.com/MushhX/Mux.git
-cd Mux
+git clone https://github.com/MushhX/MUSHYRA.git
+cd MUSHYRA
 python -m pip install .
 ```
 

@@ -1,11 +1,11 @@
 import json
 from pathlib import Path
 
-from mux_lang.cli import main
-from mux_lang.formatter import format_source
-from mux_lang.lexer import Lexer
-from mux_lang.linter import lint_ast
-from mux_lang.parser import Parser
+from mushyra.cli import main
+from mushyra.formatter import format_source
+from mushyra.lexer import Lexer
+from mushyra.linter import lint_ast
+from mushyra.parser import Parser
 
 
 def test_formatter_normalizes_block_indent():
@@ -20,18 +20,18 @@ def test_formatter_keeps_delimited_expression_lines_aligned():
 
 def test_linter_reports_unreachable_code():
     tree = Parser(Lexer("func f()\nreturn\nprint(1)\nend\n").tokenize()).parse()
-    assert any(item.code == "MUX101" for item in lint_ast(tree))
+    assert any(item.code == "MYR101" for item in lint_ast(tree))
 
 
 def test_cli_exposes_script_arguments(tmp_path, capsys):
-    source = tmp_path / "args.mux"
+    source = tmp_path / "args.myr"
     source.write_text("print(args[0])\n", encoding="utf-8")
     assert main([str(source), "--", "hello"]) == 0
     assert capsys.readouterr().out == "hello\n"
 
 
 def test_cli_json_diagnostic_is_machine_readable(tmp_path, capsys):
-    source = tmp_path / "invalid.mux"
+    source = tmp_path / "invalid.myr"
     source.write_text("let x =\n", encoding="utf-8")
     assert main(["--diagnostics-format", "json", str(source)]) == 1
     diagnostic = json.loads(capsys.readouterr().err)
@@ -40,7 +40,7 @@ def test_cli_json_diagnostic_is_machine_readable(tmp_path, capsys):
 
 
 def test_cli_check_does_not_execute_program(tmp_path, capsys):
-    source = tmp_path / "check.mux"
+    source = tmp_path / "check.myr"
     source.write_text("print(1)\n", encoding="utf-8")
     assert main(["--check", str(source)]) == 0
     assert capsys.readouterr().out == ""

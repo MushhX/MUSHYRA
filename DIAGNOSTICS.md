@@ -4,11 +4,11 @@ Los errores de `myr` y los diagnósticos LSP incluyen un código estable. El tex
 
 | Código | Categoría |
 | --- | --- |
-| `MUX1001` | Entrada léxica: carácter, literal, tamaño de fuente o cantidad de tokens no válida |
-| `MUX1002` | Sintaxis del programa |
-| `MUX2001` | Resolución estática de nombres y ámbitos |
-| `MUX3001` | Error durante la ejecución del programa |
-| `MUX100`–`MUX104` | Advertencias del linter: claves duplicadas, código inalcanzable, nombres no declarados e imports o variables no usados |
-| `MUX000` | Error genérico de una herramienta o integración que aún no asigna una categoría propia |
+| `MYR1001` | Entrada léxica: carácter, literal, tamaño de fuente o cantidad de tokens no válida |
+| `MYR1002` | Sintaxis del programa |
+| `MYR2001` | Resolución estática de nombres y ámbitos |
+| `MYR3001` | Error durante la ejecución del programa |
+| `MYR100`–`MYR104` | Advertencias del linter: claves duplicadas, código inalcanzable, nombres no declarados e imports o variables no usados |
+| `MYR000` | Error genérico de una herramienta o integración que aún no asigna una categoría propia |
 
 `myr --diagnostics-format json` devuelve el código junto con mensaje, ruta, línea, columna y contexto. El servidor LSP comunica el mismo código en cada diagnóstico.

@@ -25,15 +25,13 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/MushhX/Mux"
-Repository = "https://github.com/MushhX/Mux"
-Issues = "https://github.com/MushhX/Mux/issues"
+Homepage = "https://github.com/MushhX/MUSHYRA"
+Repository = "https://github.com/MushhX/MUSHYRA"
+Issues = "https://github.com/MushhX/MUSHYRA/issues"
 
 [project.scripts]
-myr = "mux_lang.cli:main"
-mux = "mux_lang.cli:main"
-myr-pkg = "mux_lang.package_manager:main"
-mux-pkg = "mux_lang.package_manager:main"
+myr = "mushyra.cli:main"
+myr-pkg = "mushyra.package_manager:main"
 
 [project.optional-dependencies]
 test = ["pytest>=8,<10", "hypothesis>=6,<7"]
@@ -56,10 +54,10 @@ full = [
 ]
 
 [tool.setuptools.dynamic]
-version = { attr = "mux_lang._version.__version__" }
+version = { attr = "mushyra._version.__version__" }
 
 [tool.setuptools.packages.find]
-include = ["mux_lang*"]
+include = ["mushyra*"]
 exclude = ["tests", "tests.*"]
 
 [tool.pytest.ini_options]
@@ -68,7 +66,7 @@ addopts = "-ra"
 
 [tool.coverage.run]
 branch = true
-source = ["mux_lang"]
+source = ["mushyra"]
 
 [tool.coverage.report]
 show_missing = true

@@ -1,0 +1,29 @@
+# Ejemplos de variables en MUSHYRA
+
+let nombre = "Ana"
+let edad = 25
+let estudiante = true
+let pi = 3.14159
+
+print("Nombre: " + nombre)
+print("Edad: ")
+print(edad)
+print("Es estudiante: ")
+print(estudiante)
+print("Valor de pi: ")
+print(pi)
+
+# Operaciones matemáticas
+let suma = 10 + 5
+let resta = 20 - 8
+let multiplicacion = 4 * 7
+let division = 100 / 4
+
+print("Suma: ")
+print(suma)
+print("Resta: ")
+print(resta)
+print("Multiplicación: ")
+print(multiplicacion)
+print("División: ")
+print(division)

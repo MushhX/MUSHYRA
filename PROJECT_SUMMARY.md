@@ -1,6 +1,6 @@
 # Resumen de MUSHYRA
 
-MUSHYRA es un lenguaje interpretado implementado en Python. El paquete declara la versión en `mux_lang/_version.py` y ofrece los comandos `myr` y `myr-pkg`; `mux` y `mux-pkg` se mantienen como alias.
+MUSHYRA es un lenguaje interpretado implementado en Python. El paquete declara la versión en `mushyra/_version.py` y ofrece los comandos `myr` y `myr-pkg`; `myr` y `myr-pkg` se mantienen como alias.
 
 ## Componentes
 

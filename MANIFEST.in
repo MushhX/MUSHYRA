@@ -2,7 +2,7 @@ include README.md LICENSE CHANGELOG.md RELEASE_NOTES.md
 include COMMANDS.md CONTRIBUTING.md DISTRIBUTION.md FEATURES.md INSTALL.md
 include LANGUAGE_SPEC.md PACKAGE_REGISTRY.md PROJECT_SUMMARY.md QUICKSTART.md
 include CONFIGURATION.md ROADMAP.md SECURITY.md STDLIB_REFERENCE.md UNIQUE_COMMANDS.md BOTS_GUIDE.md
-recursive-include examples *.mux *.myr
+recursive-include examples *.myr
 recursive-include tests *.py
-recursive-include benchmarks *.mux *.myr *.md
+recursive-include benchmarks *.myr *.md
 recursive-include editors *.json *.md

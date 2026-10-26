@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from mux_lang._version import __version__
+from mushyra._version import __version__
 
 
 ROOT = Path(__file__).resolve().parent
@@ -41,7 +41,7 @@ def build_installer():
         print("No se encontró Inno Setup 6 (ISCC.exe)", file=sys.stderr)
         return 1
 
-    icon = ROOT / "mux_icon.ico"
+    icon = ROOT / "mushyra_icon.ico"
     if not icon.is_file():
         try:
             result = subprocess.run([sys.executable, str(ROOT / "create_icon.py")], cwd=str(ROOT), check=False)
@@ -49,7 +49,7 @@ def build_installer():
             print(f"No se pudo crear el icono: {exc}", file=sys.stderr)
             return 1
         if result.returncode or not icon.is_file():
-            print('No se creó mux_icon.ico. Instala las dependencias con python -m pip install ".[build]"', file=sys.stderr)
+            print('No se creó mushyra_icon.ico. Instala las dependencias con python -m pip install ".[build]"', file=sys.stderr)
             return 1
 
     build_dir = ROOT / "build"
@@ -57,9 +57,9 @@ def build_installer():
     template_path = ROOT / "installer.iss"
     generated = build_dir / "installer.generated.iss"
     template = template_path.read_text(encoding="utf-8")
-    template = template.replace("@MUX_VERSION@", __version__)
-    template = template.replace("@MUX_ROOT@", str(ROOT.resolve()).replace("/", "\\"))
-    template = template.replace("@MUX_OUTPUT_DIR@", str((ROOT / "installer_output").resolve()).replace("/", "\\"))
+    template = template.replace("@MYR_VERSION@", __version__)
+    template = template.replace("@MYR_ROOT@", str(ROOT.resolve()).replace("/", "\\"))
+    template = template.replace("@MYR_OUTPUT_DIR@", str((ROOT / "installer_output").resolve()).replace("/", "\\"))
     with generated.open("w", encoding="utf-8", newline="\n") as stream:
         stream.write(template)
     output_dir = ROOT / "installer_output"

@@ -1,7 +1,7 @@
 const cp = require('child_process');
 const vscode = require('vscode');
 
-class MuxClient {
+class MUSHYRAClient {
   constructor(context) {
     this.context = context;
     this.output = vscode.window.createOutputChannel('MUSHYRA Language Server');
@@ -15,17 +15,14 @@ class MuxClient {
 
   start() {
     const config = vscode.workspace.getConfiguration('myr');
-    const legacyConfig = vscode.workspace.getConfiguration('mux');
     const configuredValue = (settings, key) => {
       const values = settings.inspect(key);
       return values?.workspaceFolderLanguageValue ?? values?.workspaceFolderValue
         ?? values?.workspaceLanguageValue ?? values?.workspaceValue
         ?? values?.globalLanguageValue ?? values?.globalValue;
     };
-    const command = configuredValue(config, 'serverPath')
-      ?? configuredValue(legacyConfig, 'serverPath') ?? 'myr';
-    const args = configuredValue(config, 'serverArgs')
-      ?? configuredValue(legacyConfig, 'serverArgs') ?? ['--lsp'];
+    const command = configuredValue(config, 'serverPath') ?? 'myr';
+    const args = configuredValue(config, 'serverArgs') ?? ['--lsp'];
     const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     this.buffer = Buffer.alloc(0);
     this.process = cp.spawn(command, args, {
@@ -52,7 +49,7 @@ class MuxClient {
       this.ready = true;
       this.notify('initialized', {});
       for (const document of vscode.workspace.textDocuments) {
-        if (document.languageId === 'mux') this.open(document);
+        if (document.languageId === 'myr') this.open(document);
       }
     }).catch(error => this.output.appendLine(`Inicialización LSP fallida: ${error.message}`));
   }
@@ -163,26 +160,26 @@ class MuxClient {
 }
 
 function activate(context) {
-  const client = new MuxClient(context);
+  const client = new MUSHYRAClient(context);
   client.start();
   context.subscriptions.push(client);
 
   context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(document => {
-    if (document.languageId === 'mux') client.open(document);
+    if (document.languageId === 'myr') client.open(document);
   }));
   context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(event => {
-    if (event.document.languageId === 'mux') client.change(event.document);
+    if (event.document.languageId === 'myr') client.change(event.document);
   }));
   context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(document => {
-    if (document.languageId === 'mux') client.notify('textDocument/didSave', {
+    if (document.languageId === 'myr') client.notify('textDocument/didSave', {
       textDocument: { uri: document.uri.toString() }, text: document.getText(),
     });
   }));
   context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(document => {
-    if (document.languageId === 'mux') client.close(document);
+    if (document.languageId === 'myr') client.close(document);
   }));
 
-  const selector = { language: 'mux' };
+  const selector = { language: 'myr' };
   context.subscriptions.push(vscode.languages.registerCompletionItemProvider(selector, {
     async provideCompletionItems(document, position) {
       const result = await client.request('textDocument/completion', client.params(document, position));

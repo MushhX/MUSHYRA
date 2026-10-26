@@ -5,8 +5,8 @@ MUSHYRA requiere Python 3.8 o posterior.
 ## Desde el repositorio
 
 ```console
-git clone https://github.com/MushhX/Mux.git
-cd Mux
+git clone https://github.com/MushhX/MUSHYRA.git
+cd MUSHYRA
 python -m pip install .
 myr --version
 myr examples/hola_mundo.myr
@@ -51,7 +51,7 @@ El artefacto aparece en `dist/` y se construye para la plataforma actual. En Win
 - Si `myr` no aparece, confirma que el directorio de scripts de Python está en `PATH` o instala el paquete de nuevo; los programas MUSHYRA se ejecutan con `myr archivo.myr`.
 - Los errores del lenguaje incluyen archivo, línea y columna. `myr --debug archivo.myr` muestra el traceback de la causa interna.
 - Si falta una integración, instala su extra correspondiente. Los módulos locales y los paquetes instalados con `myr-pkg` se resuelven desde el directorio del programa y el directorio de datos MUSHYRA.
-- Define `MUX_HOME` para cambiar el directorio del gestor de paquetes.
+- Define `MYR_HOME` para cambiar el directorio del gestor de paquetes.
 
 ## Desinstalar
 

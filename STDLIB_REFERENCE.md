@@ -108,4 +108,4 @@ Requiere `python-telegram-bot`: `crear_bot(token)`, `comando(bot, nombre, handle
 
 ## `whatsapp` (extra `whatsapp`)
 
-Requiere Twilio. `send(destinatario, mensaje)` lee `MYR_TWILIO_ACCOUNT_SID`, `MYR_TWILIO_AUTH_TOKEN` y, opcionalmente, `MYR_TWILIO_WHATSAPP_FROM` del entorno. También reconoce los nombres heredados `MUX_TWILIO_*`. Devuelve `sid` y `status` del mensaje aceptado por Twilio.
+Requiere Twilio. `send(destinatario, mensaje)` lee `MYR_TWILIO_ACCOUNT_SID`, `MYR_TWILIO_AUTH_TOKEN` y, opcionalmente, `MYR_TWILIO_WHATSAPP_FROM` del entorno. Devuelve `sid` y `status` del mensaje aceptado por Twilio.

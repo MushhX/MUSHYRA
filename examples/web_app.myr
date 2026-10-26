@@ -1,0 +1,25 @@
+# Aplicación Web en MUSHYRA
+# Creador: MushhX
+
+import web
+
+let app = crear_app()
+
+# Ruta principal
+func index_handler()
+    print("Página principal visitada")
+    return "<h1>¡Hola desde MUSHYRA!</h1>"
+end
+
+ruta(app, "/", index_handler)
+
+# Ruta de API
+func api_handler()
+    print("API llamada")
+    return {"mensaje": "Hola desde la API", "version": "1.0"}
+end
+
+ruta(app, "/api", api_handler)
+
+print("Iniciando servidor web...")
+iniciar(app, 5000)

@@ -84,7 +84,7 @@ myr-pkg list
 myr-pkg remove saludos
 ```
 
-Las descargas HTTPS requieren `--sha256 HASH` y, salvo que se pida expresamente `--allow-unsigned`, una firma Ed25519 de una clave confiable. Puedes configurar `MYR_PACKAGE_REGISTRY` para buscar e instalar desde un índice firmado y `MYR_PACKAGE_TRUST_STORE` para establecer el trust store predeterminado. Consulta [PACKAGE_REGISTRY.md](PACKAGE_REGISTRY.md). El manifiesto opcional se llama `mux-package.json` por compatibilidad; su propiedad `main` debe apuntar a un archivo `.myr` del paquete.
+Las descargas HTTPS requieren `--sha256 HASH` y, salvo que se pida expresamente `--allow-unsigned`, una firma Ed25519 de una clave confiable. Puedes configurar `MYR_PACKAGE_REGISTRY` para buscar e instalar desde un índice firmado y `MYR_PACKAGE_TRUST_STORE` para establecer el trust store predeterminado. Consulta [PACKAGE_REGISTRY.md](PACKAGE_REGISTRY.md). El manifiesto opcional `myr-package.json` puede indicar un archivo `.myr` en la propiedad `main`.
 
 ## Compilar
 

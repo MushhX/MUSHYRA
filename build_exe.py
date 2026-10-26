@@ -1,14 +1,13 @@
 """Build a standalone MUSHYRA executable for the current operating system."""
 
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-ENTRYPOINT = ROOT / "mux_main.py"
+ENTRYPOINT = ROOT / "myr_main.py"
 
 
 def build_executable():
@@ -46,10 +45,7 @@ def build_executable():
     if not artifact.is_file():
         print(f"PyInstaller terminó sin crear {artifact}", file=sys.stderr)
         return 1
-    legacy_artifact = output_dir / f"mux{suffix}"
-    shutil.copy2(artifact, legacy_artifact)
     print(f"Ejecutable creado: {artifact}")
-    print(f"Alias de compatibilidad creado: {legacy_artifact}")
     return 0
 
 

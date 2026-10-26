@@ -1,2 +1,5 @@
 # Primer programa en MUSHYRA
 print("Hola desde MUSHYRA")
+
+let nombre = "MUSHYRA"
+print("Bienvenido a " + nombre)

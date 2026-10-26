@@ -1,0 +1,21 @@
+# Para enviar, define MYR_SEND_SAMPLE_EMAIL=true y MYR_SMTP_* / MYR_EMAIL_TO.
+
+import email
+import env
+
+if env.get("MYR_SEND_SAMPLE_EMAIL") == "true"
+    email.configure_smtp(
+        env.require("MYR_SMTP_HOST"),
+        int(env.require("MYR_SMTP_PORT")),
+        env.require("MYR_SMTP_USER"),
+        env.require("MYR_SMTP_PASSWORD")
+    )
+    email.send(
+        env.require("MYR_EMAIL_TO"),
+        "Hola desde MUSHYRA",
+        "Este mensaje de muestra fue enviado desde MUSHYRA"
+    )
+    print("Mensaje aceptado por el servidor SMTP")
+else
+    print("Define MYR_SEND_SAMPLE_EMAIL=true y las variables MYR_SMTP_* para enviar un mensaje")
+end

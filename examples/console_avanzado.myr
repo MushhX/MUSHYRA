@@ -1,0 +1,60 @@
+# Ejemplo de Consola Avanzada
+# Creador: MushhX
+
+import console
+
+print("=== Consola Avanzada de MUSHYRA ===")
+print("")
+
+# Colores
+print("🎨 Colores:")
+color("Texto en rojo", "red")
+color("Texto en verde", "green")
+color("Texto en azul", "blue")
+print("")
+
+# Estilos
+print("✨ Estilos:")
+bold("Texto en negrita")
+italic("Texto en cursiva")
+underline("Texto subrayado")
+print("")
+
+# Barra de progreso
+print("📊 Barra de progreso:")
+progress_bar(0, 100)
+progress_bar(25, 100)
+progress_bar(50, 100)
+progress_bar(75, 100)
+progress_bar(100, 100)
+print("")
+
+# Tabla
+print("📋 Tabla:")
+let datos = [
+    {"nombre": "Ana", "edad": 25},
+    {"nombre": "Carlos", "edad": 30},
+    {"nombre": "María", "edad": 28}
+]
+table(datos)
+print("")
+
+# Menú
+print("📋 Menú:")
+let opciones = ["Opción 1", "Opción 2", "Opción 3", "Salir"]
+let seleccion = menu(opciones)
+print("Seleccionaste: " + str(seleccion))
+print("")
+
+# Confirmación
+print("❓ Confirmación:")
+let confirmar = confirm("¿Deseas continuar?")
+show(confirmar)
+print("")
+
+# Spinner
+print("⏳ Spinner:")
+spinner("Cargando datos")
+print("")
+
+print("✅ Consola avanzada funcionando")

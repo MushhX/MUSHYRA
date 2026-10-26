@@ -1,5 +1,5 @@
 {
-  "name": "mux-language-support",
+  "name": "mushyra-language-support",
   "displayName": "MUSHYRA Language Support",
   "description": "Syntax highlighting and language-server features for MUSHYRA programs",
   "version": "2.0.0",
@@ -11,7 +11,7 @@
   "categories": [
     "Programming Languages"
   ],
-  "activationEvents": ["onLanguage:mux"],
+  "activationEvents": ["onLanguage:myr"],
   "contributes": {
     "configuration": {
       "title": "MUSHYRA",
@@ -26,39 +26,28 @@
           "items": { "type": "string" },
           "default": ["--lsp"],
           "description": "Arguments used to start the language server."
-        },
-        "mux.serverPath": {
-          "type": "string",
-          "default": "mux",
-          "description": "Ruta al ejecutable heredado de Mux que inicia el servidor de lenguaje."
-        },
-        "mux.serverArgs": {
-          "type": "array",
-          "items": { "type": "string" },
-          "default": ["--lsp"],
-          "description": "Argumentos usados para iniciar el servidor de lenguaje."
         }
       }
     },
     "languages": [
       {
-        "id": "mux",
-        "aliases": ["MUSHYRA", "myr", "Mux", "mux"],
-        "extensions": [".myr", ".mux"],
+        "id": "myr",
+        "aliases": ["MUSHYRA", "myr"],
+        "extensions": [".myr"],
         "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
       {
-        "language": "mux",
-        "scopeName": "source.mux",
-        "path": "./syntaxes/mux.tmLanguage.json"
+        "language": "myr",
+        "scopeName": "source.myr",
+        "path": "./syntaxes/myr.tmLanguage.json"
       }
     ],
     "snippets": [
       {
-        "language": "mux",
-        "path": "./snippets/mux.code-snippets"
+        "language": "myr",
+        "path": "./snippets/myr.code-snippets"
       }
     ]
   }

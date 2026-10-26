@@ -1,0 +1,18 @@
+# Bucles en MUSHYRA
+
+# Repeat: repite un bloque N veces
+print("Contando hasta 5:")
+repeat 5
+    print("¡Hola!")
+end
+
+# While: repite mientras una condición sea verdadera
+let contador = 0
+print("Bucle while:")
+while contador < 3
+    print("Contador: ")
+    print(contador)
+    contador = contador + 1
+end
+
+print("Bucle terminado")

@@ -1,7 +1,7 @@
 from hypothesis import given, settings, strategies as st
 
-from mux_lang.lexer import Lexer, MuxError
-from mux_lang.parser import Parser
+from mushyra.lexer import Lexer, MushyraError
+from mushyra.parser import Parser
 
 
 @settings(max_examples=200, deadline=None)
@@ -10,5 +10,5 @@ def test_lexer_and_parser_never_leak_common_input_errors(source):
     try:
         tokens = Lexer(source).tokenize()
         Parser(tokens).parse()
-    except MuxError:
+    except MushyraError:
         pass

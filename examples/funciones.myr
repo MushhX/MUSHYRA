@@ -1,0 +1,35 @@
+# Funciones en MUSHYRA
+
+# Función simple
+func saludar(nombre)
+    print("¡Hola, " + nombre + "!")
+end
+
+saludar("Mundo")
+saludar("MUSHYRA")
+
+# Función con retorno
+func sumar(a, b)
+    return a + b
+end
+
+let resultado = sumar(10, 20)
+print("La suma es: ")
+print(resultado)
+
+# Función más compleja
+func es_par(numero)
+    let resto = numero - (numero / 2) * 2
+    if resto == 0
+        return true
+    else
+        return false
+    end
+end
+
+let num = 8
+if es_par(num)
+    print("El número es par")
+else
+    print("El número es impar")
+end

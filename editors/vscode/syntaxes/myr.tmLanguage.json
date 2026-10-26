@@ -1,0 +1,64 @@
+{
+  "scopeName": "source.myr",
+  "name": "MUSHYRA",
+  "patterns": [
+    {"include": "#comments"},
+    {"include": "#strings"},
+    {"include": "#numbers"},
+    {"include": "#constants"},
+    {"include": "#keywords"},
+    {"include": "#builtins"},
+    {"include": "#function-calls"},
+    {"include": "#operators"}
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {"name": "comment.line.number-sign.myr", "match": "#.*$"}
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.myr",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {"name": "constant.character.escape.myr", "match": "\\\\(?:[\"\\\\bnrtf]|u[0-9A-Fa-f]{4})"}
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {"name": "constant.numeric.myr", "match": "\\b\\d(?:_?\\d)*(?:\\.\\d(?:_?\\d)*)?(?:[eE][+-]?\\d(?:_?\\d)*)?\\b"}
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {"name": "constant.language.boolean.myr", "match": "\\b(?:true|false)\\b"},
+        {"name": "constant.language.null.myr", "match": "\\bnull\\b"}
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {"name": "keyword.control.myr", "match": "\\b(?:if|elif|else|end|repeat|while|for|each|until|unless|loop|times|do|break|continue|return|exit|pass|assert)\\b"},
+        {"name": "keyword.declaration.myr", "match": "\\b(?:let|func|lambda|global|nonlocal)\\b"},
+        {"name": "keyword.other.import.myr", "match": "\\b(?:import|from|as)\\b"}
+      ]
+    },
+    "builtins": {
+      "patterns": [
+        {"name": "support.function.builtin.myr", "match": "\\b(?:print|input|ask|len|type|str|int|float|range|show|say|wait)\\b(?=\\s*\\()"}
+      ]
+    },
+    "function-calls": {
+      "patterns": [
+        {"name": "entity.name.function.myr", "match": "\\b[\\p{L}_][\\p{L}\\p{N}_]*(?=\\s*\\()"}
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {"name": "keyword.operator.logical.myr", "match": "&&|\\|\\||!"},
+        {"name": "keyword.operator.comparison.myr", "match": "==|!=|<=|>=|<|>"},
+        {"name": "keyword.operator.arithmetic.myr", "match": "[+*/%=-]"}
+      ]
+    }
+  }
+}

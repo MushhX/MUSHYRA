@@ -1,6 +1,6 @@
 # Configuración de la CLI
 
-MUSHYRA carga configuración JSON al iniciar. La ruta se toma de `--config`, después de `MYR_CONFIG` (también acepta `MUX_CONFIG`); si ninguna está definida, usa `AppData/Roaming/MUSHYRA/config.json` en Windows o `$XDG_CONFIG_HOME/myr/config.json` (por defecto `~/.config/myr/config.json`) en Linux/macOS. Si encuentra una configuración heredada en la carpeta `Mux` o `mux` y no existe una nueva, la carga desde esa ubicación.
+MUSHYRA carga configuración JSON al iniciar. La ruta se toma de `--config` y, si no se proporciona, de `MYR_CONFIG`. Si ninguna está definida, usa `AppData/Roaming/MUSHYRA/config.json` en Windows o `$XDG_CONFIG_HOME/myr/config.json` (por defecto `~/.config/myr/config.json`) en Linux/macOS.
 
 Ejemplo:
 

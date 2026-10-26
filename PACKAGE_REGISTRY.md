@@ -4,7 +4,7 @@
 
 ## Preparar un paquete firmado
 
-La carpeta admite fuentes `.myr` y heredadas `.mux`, además de `.json`, `.md` y `.txt`. Incluye `mux-package.json` (nombre conservado por compatibilidad) con nombre, versión, entrada, dependencias y los hashes de cada archivo del paquete, excepto el propio manifiesto:
+La carpeta admite fuentes `.myr`, además de `.json`, `.md` y `.txt`. Incluye `myr-package.json` con nombre, versión, entrada, dependencias y los hashes de cada archivo del paquete, excepto el propio manifiesto:
 
 ```json
 {
@@ -32,7 +32,7 @@ La carpeta admite fuentes `.myr` y heredadas `.mux`, además de `.json`, `.md` y
 3. Firma el manifiesto y crea el ZIP. Si cambias cualquier archivo después de calcular `files`, vuelve a calcular los hashes y firmar:
 
    ```console
-   myr-pkg sign ./saludos/mux-package.json --private-key C:/secrets/myr-signing.key --key-id equipo-2026
+   myr-pkg sign ./saludos/myr-package.json --private-key C:/secrets/myr-signing.key --key-id equipo-2026
    myr-pkg pack ./saludos --output ./dist/saludos-1.2.0.zip
    ```
 
@@ -63,7 +63,7 @@ La firma del índice vincula nombre, versión, URL y hash del ZIP. La firma del 
 
 ## Configurar el cliente
 
-Guarda el trust store recibido en una ruta protegida. Puedes establecer `MYR_PACKAGE_TRUST_STORE` como ruta predeterminada (también se acepta la variable heredada `MUX_PACKAGE_TRUST_STORE`) y definir el índice por variable de entorno o argumento:
+Guarda el trust store recibido en una ruta protegida. Puedes establecer `MYR_PACKAGE_TRUST_STORE` como ruta predeterminada y definir el índice por variable de entorno o argumento:
 
 ```console
 set MYR_PACKAGE_REGISTRY=https://packages.example.org/index.json
@@ -79,8 +79,8 @@ En PowerShell usa `$env:MYR_PACKAGE_REGISTRY = 'https://packages.example.org/ind
 Las versiones siguen `MAJOR.MINOR.PATCH` y admiten prerelease/build metadata. Las dependencias permiten versión exacta, `>=`, `^`, `~` o `*`. El cliente instala primero dependencias presentes en el lockfile:
 
 ```console
-myr-pkg lock --manifest mux-package.json --output mux.lock.json
-myr-pkg install-lock --file mux.lock.json --trust-store C:/config/myr-trust.json
+myr-pkg lock --manifest myr-package.json --output myr.lock.json
+myr-pkg install-lock --file myr.lock.json --trust-store C:/config/myr-trust.json
 ```
 
 El lockfile fija versión, origen y SHA-256 del paquete. Mantén el lockfile junto al manifiesto si necesitas instalaciones repetibles. Los paquetes instalados se pueden revisar con `myr-pkg verify` y `myr-pkg audit`; `myr-pkg outdated` consulta el índice configurado.

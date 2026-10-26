@@ -29,7 +29,7 @@ myr --timeout-seconds 15 programa.myr
 myr --sandbox --sandbox-root ./proyecto programa.myr
 myr --debugger programa.myr
 myr --lsp
-myr --time benchmarks/interpreter_suite.mux
+myr --time benchmarks/interpreter_suite.myr
 myr programa.myr -- valor
 myr --debug programa.myr
 myr --repl
@@ -77,7 +77,7 @@ python -m pip install ".[crypto]"
 
 ## Autocompletado del shell
 
-Carga `editors/completions/mux.bash` desde tu perfil de Bash o ejecuta `. editors/completions/mux.ps1` desde tu perfil de PowerShell para completar opciones y rutas.
+Carga `editors/completions/myr.bash` desde tu perfil de Bash o ejecuta `. editors/completions/myr.ps1` desde tu perfil de PowerShell para completar opciones y rutas.
 
 ## Empaquetar
 

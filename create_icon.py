@@ -54,20 +54,16 @@ def create_mushyra_icon():
     draw.text((x, y), text, fill=text_color, font=font)
     
     # Guardar como PNG
-    img.save(ROOT / 'mux_icon.png', 'PNG')
-    print("✅ Icono PNG creado: mux_icon.png")
+    img.save(ROOT / 'mushyra_icon.png', 'PNG')
+    print("✅ Icono PNG creado: mushyra_icon.png")
     
     # Intentar crear ICO
     try:
-        img.save(ROOT / 'mux_icon.ico', format='ICO', sizes=[(s, s) for s in sizes])
-        print("✅ Icono ICO creado: mux_icon.ico")
+        img.save(ROOT / 'mushyra_icon.ico', format='ICO', sizes=[(s, s) for s in sizes])
+        print("✅ Icono ICO creado: mushyra_icon.ico")
     except Exception as e:
         print(f"⚠️ No se pudo crear ICO: {e}")
-        print("   Puedes convertir mux_icon.png a ICO manualmente")
+        print("   Puedes convertir mushyra_icon.png a ICO manualmente")
 
 if __name__ == '__main__':
     create_mushyra_icon()
-
-
-# Alias interno para scripts que aún importan el nombre anterior.
-create_mux_icon = create_mushyra_icon

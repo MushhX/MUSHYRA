@@ -1,6 +1,6 @@
 # MUSHYRA
 
-MUSHYRA es un lenguaje interpretado. Sus programas nuevos se guardan como archivos `.myr` y se ejecutan con el comando `myr`. También reconoce los archivos `.mux` y comandos `mux` de proyectos anteriores. Incluye posiciones de origen, funciones, colecciones, módulos nativos y herramientas de desarrollo.
+MUSHYRA es un lenguaje interpretado. Sus programas se guardan como archivos `.myr` y se ejecutan con el comando `myr`. Incluye posiciones de origen, funciones, colecciones, módulos nativos y herramientas de desarrollo.
 
 ## Instalar
 
@@ -64,7 +64,7 @@ Los módulos estándar son implementaciones nativas del intérprete; no devuelve
 
 ## Paquetes MUSHYRA
 
-`myr-pkg` instala módulos desde una carpeta, un archivo `.myr` o `.mux`, un ZIP local o una URL HTTPS con nombre y hash SHA-256 explícitos:
+`myr-pkg` instala módulos desde una carpeta, un archivo `.myr`, un ZIP local o una URL HTTPS con nombre y hash SHA-256 explícitos:
 
 ```console
 myr-pkg install ./mi_paquete --name saludos
@@ -77,7 +77,7 @@ myr-pkg list
 myr-pkg remove saludos
 ```
 
-Un paquete puede incluir `mux-package.json` (nombre de manifiesto conservado por compatibilidad) con `name`, `version`, `description`, `main`, `dependencies` y `files`. Para paquetes remotos se verifican SHA-256 y firmas Ed25519; consulta [PACKAGE_REGISTRY.md](PACKAGE_REGISTRY.md) para preparar un manifiesto y un índice. El cliente admite un registro local o HTTPS, pero el proyecto no aloja uno. Los paquetes se guardan en el directorio de datos del usuario; `MYR_HOME` permite elegir otro. `MUX_HOME` se mantiene como variable heredada.
+Un paquete puede incluir `myr-package.json` con `name`, `version`, `description`, `main`, `dependencies` y `files`. Para paquetes remotos se verifican SHA-256 y firmas Ed25519; consulta [PACKAGE_REGISTRY.md](PACKAGE_REGISTRY.md) para preparar un manifiesto y un índice. El cliente admite un registro local o HTTPS, pero el proyecto no aloja uno. Los paquetes se guardan en el directorio de datos del usuario; configura `MYR_HOME` para elegir otro.
 
 ## Crear ejecutables
 

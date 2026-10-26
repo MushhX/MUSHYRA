@@ -2,9 +2,9 @@
 ; Creador: MushhX
 
 #define MyAppName "MUSHYRA"
-#define MyAppVersion "@MUX_VERSION@"
+#define MyAppVersion "@MYR_VERSION@"
 #define MyAppPublisher "MushhX"
-#define MyAppURL "https://github.com/mushhx/mux"
+#define MyAppURL "https://github.com/MushhX/MUSHYRA"
 #define MyAppExeName "myr.exe"
 
 [Setup]
@@ -20,11 +20,11 @@ AppUpdatesURL={#MyAppURL}/releases
 DefaultDirName={localappdata}\Programs\MUSHYRA
 DefaultGroupName=MUSHYRA
 AllowNoIcons=yes
-LicenseFile=@MUX_ROOT@\LICENSE
-InfoBeforeFile=@MUX_ROOT@\INSTALL.md
-OutputDir=@MUX_OUTPUT_DIR@
+LicenseFile=@MYR_ROOT@\LICENSE
+InfoBeforeFile=@MYR_ROOT@\INSTALL.md
+OutputDir=@MYR_OUTPUT_DIR@
 OutputBaseFilename=mushyra-setup-{#MyAppVersion}
-SetupIconFile=@MUX_ROOT@\mux_icon.ico
+SetupIconFile=@MYR_ROOT@\mushyra_icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -44,21 +44,20 @@ Name: "addtopath"; Description: "Agregar MUSHYRA al PATH del usuario"; GroupDesc
 
 [Files]
 ; Ejecutable principal
-Source: "@MUX_ROOT@\dist\myr.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "@MUX_ROOT@\dist\mux.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MYR_ROOT@\dist\myr.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Ejemplos
-Source: "@MUX_ROOT@\examples\*"; DestDir: "{app}\examples"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "@MYR_ROOT@\examples\*"; DestDir: "{app}\examples"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Documentación
-Source: "@MUX_ROOT@\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
-Source: "@MUX_ROOT@\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
-Source: "@MUX_ROOT@\QUICKSTART.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "@MUX_ROOT@\FEATURES.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "@MUX_ROOT@\STDLIB_REFERENCE.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "@MUX_ROOT@\UNIQUE_COMMANDS.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "@MUX_ROOT@\BOTS_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "@MUX_ROOT@\EXECUTABLE_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MYR_ROOT@\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
+Source: "@MYR_ROOT@\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MYR_ROOT@\QUICKSTART.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MYR_ROOT@\FEATURES.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MYR_ROOT@\STDLIB_REFERENCE.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MYR_ROOT@\UNIQUE_COMMANDS.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MYR_ROOT@\BOTS_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@MYR_ROOT@\EXECUTABLE_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\MUSHYRA"; Filename: "{app}\{#MyAppExeName}"
@@ -181,4 +180,4 @@ end;
 WelcomeLabel1=Bienvenido al Asistente de Instalación de [name]
 WelcomeLabel2=Este programa instalará [name/ver] en tu computadora.%n%nMUSHYRA es un lenguaje de programación moderno y ligero.%n%nSe recomienda cerrar todas las demás aplicaciones antes de continuar.
 FinishedHeadingLabel=Completando el Asistente de Instalación de [name]
-FinishedLabel=[name] ha sido instalado en tu computadora.%n%nPuedes ejecutar MUSHYRA desde la línea de comandos usando:%n%n  myr archivo.myr%n%nTambién puedes usar el alias mux con programas .mux existentes.
+FinishedLabel=[name] ha sido instalado en tu computadora.%n%nPuedes ejecutar MUSHYRA desde la línea de comandos usando:%n%n  myr archivo.myr

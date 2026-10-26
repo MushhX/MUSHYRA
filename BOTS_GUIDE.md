@@ -65,6 +65,6 @@ Este módulo envía mensajes mediante Twilio; no recibe mensajes entrantes ni co
 
 ## Ejecución y secretos
 
-En PowerShell, define una variable para la sesión con `$env:MYR_DISCORD_TOKEN = "..."`; en macOS/Linux usa `export MYR_DISCORD_TOKEN="..."`. Luego ejecuta `myr mi_bot.myr` en esa misma terminal. Los programas existentes pueden seguir usando sus nombres `MUX_*` mientras sus fuentes los referencien.
+En PowerShell, define una variable para la sesión con `$env:MYR_DISCORD_TOKEN = "..."`; en macOS/Linux usa `export MYR_DISCORD_TOKEN="..."`. Luego ejecuta `myr mi_bot.myr` en esa misma terminal.
 
 No publiques tokens, contraseñas, datos personales ni logs que los contengan. Revoca y rota cualquier credencial que se haya compartido por error. Los servicios aplican sus propios límites de uso y condiciones.

@@ -8,7 +8,6 @@ build/
 develop-eggs/
 dist/
 installer_output/
-mux-portable-*.zip
 mushyra-portable-*.zip
 downloads/
 eggs/
@@ -50,11 +49,11 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
-# Mux
-.mux/
-*.mux.bak
-mux_icon.ico
-mux_icon.png
+# MUSHYRA
+.mushyra/
+*.myr.bak
+mushyra_icon.ico
+mushyra_icon.png
 
 # Testing
 .pytest_cache/

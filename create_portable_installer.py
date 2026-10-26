@@ -10,7 +10,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from mux_lang._version import __version__
+from mushyra._version import __version__
 
 
 ROOT = Path(__file__).resolve().parent
@@ -74,9 +74,6 @@ def create_portable_installer(output_dir=None):
             staging = Path(temp_name) / "myr"
             staging.mkdir()
             shutil.copy2(executable, staging / executable.name)
-            legacy_executable = ROOT / "dist" / f"mux{suffix}"
-            if legacy_executable.is_file():
-                shutil.copy2(legacy_executable, staging / legacy_executable.name)
             shutil.copytree(ROOT / "examples", staging / "examples")
             for name in DOCS:
                 source = ROOT / name

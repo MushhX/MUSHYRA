@@ -1,0 +1,30 @@
+# Ejemplo de módulos estándar con alias
+
+import math as matematica
+import time as reloj
+import filesystem as archivos
+import crypto as criptografia
+import json as json_myr
+import console as consola
+
+print("=== Módulos estándar de MUSHYRA ===")
+print("pi: " + str(matematica.pi))
+print("sqrt(16): " + str(matematica.sqrt(16)))
+print("Año actual: " + str(reloj.get_year()))
+
+let existe = archivos.exists("archivo.txt")
+print("archivo.txt existe: " + str(existe))
+print("Elementos del directorio: " + str(archivos.list_dir(".")))
+
+let hash = criptografia.hash_sha256("ejemplo")
+let uuid = criptografia.generate_uuid()
+print("SHA-256: " + hash)
+print("UUID: " + uuid)
+
+let datos = {"nombre": "Ana", "edad": 25}
+let texto_json = json_myr.stringify(datos)
+print("JSON: " + texto_json)
+print("JSON parseado: " + str(json_myr.parse(texto_json)))
+
+consola.color("Los módulos estándar están activos", "green")
+consola.progress_bar(50, 100)

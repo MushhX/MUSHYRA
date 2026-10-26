@@ -1,0 +1,47 @@
+# Comandos Únicos de MUSHYRA
+# Creador: MushhX
+
+print("=== Comandos Únicos de MUSHYRA ===")
+print("")
+
+# SHOW - Mostrar con emoji
+show("Este es el comando show")
+
+# SAY - Decir con emoji
+say("Este es el comando say")
+
+# ASK - Preguntar (como input pero con emoji)
+# let respuesta = ask("¿Cómo estás?")
+# show(respuesta)
+
+# ASSERT - Verificar condiciones
+let edad = 25
+assert(edad >= 18, "Debe ser mayor de edad")
+say("✓ Verificación pasada")
+
+# UNLESS - Si no (inverso de if)
+let llueve = false
+unless llueve
+    say("¡Vamos al parque!")
+end
+
+# UNTIL - Hasta que (inverso de while)
+let contador = 0
+until contador >= 3
+    show("Contador: " + str(contador))
+    contador = contador + 1
+end
+
+# EACH - Iterar (alias de for)
+let frutas = ["manzana", "banana", "naranja"]
+each fruta in frutas
+    say("Me gusta la " + fruta)
+end
+
+# PASS - No hacer nada
+let x = 10
+if x > 5
+    pass
+end
+
+say("¡Comandos únicos funcionando!")
