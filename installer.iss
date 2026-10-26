@@ -103,9 +103,11 @@ function RemovePathEntry(PathValue, Candidate: string): string;
 var
   Remaining, Item: string;
   SeparatorPosition: Integer;
+  FirstEntry: Boolean;
 begin
   Result := '';
   Remaining := PathValue;
+  FirstEntry := True;
   while Remaining <> '' do
   begin
     SeparatorPosition := Pos(';', Remaining);
@@ -119,11 +121,12 @@ begin
       Item := Copy(Remaining, 1, SeparatorPosition - 1);
       Delete(Remaining, 1, SeparatorPosition);
     end;
-    if (Trim(Item) <> '') and (CompareText(Trim(Item), Candidate) <> 0) then
+    if CompareText(Trim(Item), Candidate) <> 0 then
     begin
-      if Result <> '' then
+      if not FirstEntry then
         Result := Result + ';';
       Result := Result + Item;
+      FirstEntry := False;
     end;
   end;
 end;

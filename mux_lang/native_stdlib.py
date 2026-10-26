@@ -18,10 +18,10 @@ import sqlite3
 import ssl
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from email.message import EmailMessage
 from pathlib import Path
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -189,17 +189,28 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
             parsed = urlparse(str(url))
             if parsed.scheme not in ("http", "https") or not parsed.netloc:
                 raise _error("HTTP solo admite URL http(s) absolutas")
+            if headers is not None and not isinstance(headers, dict):
+                raise _error("headers debe ser un diccionario")
+            try:
+                timeout = float(timeout)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise _error("timeout debe ser un número finito mayor que cero") from exc
+            if not math.isfinite(timeout) or timeout <= 0:
+                raise _error("timeout debe ser un número finito mayor que cero")
             body = None
             request_headers = dict(headers or {})
             if data is not None:
                 if isinstance(data, (dict, list)):
-                    body = json.dumps(data).encode("utf-8")
+                    try:
+                        body = json.dumps(data, allow_nan=False).encode("utf-8")
+                    except (TypeError, ValueError) as exc:
+                        raise _error(f"El cuerpo no se puede serializar como JSON: {exc}") from exc
                     request_headers.setdefault("Content-Type", "application/json")
                 else:
                     body = str(data).encode("utf-8")
             req = Request(str(url), data=body, headers=request_headers, method=method)
             try:
-                with urlopen(req, timeout=float(timeout)) as response:
+                with urlopen(req, timeout=timeout) as response:
                     raw = response.read(MAX_HTTP_RESPONSE_BYTES + 1)
                     if len(raw) > MAX_HTTP_RESPONSE_BYTES:
                         raise _error("La respuesta HTTP supera el límite de 10 MiB")
@@ -312,38 +323,50 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
         }.items()}
 
     if name == "json":
+        def reject_nonstandard_constant(value):
+            raise ValueError(f"Constante JSON no estándar: {value}")
+
         def parse(_vm, *args):
             _arity("parse", args, 1)
             try:
-                return json.loads(args[0])
-            except (TypeError, json.JSONDecodeError) as exc:
+                return json.loads(args[0], parse_constant=reject_nonstandard_constant)
+            except (TypeError, ValueError) as exc:
                 raise _error(f"JSON no válido: {exc}") from exc
 
         def stringify(_vm, *args):
             _arity("stringify", args, 1)
             try:
-                return json.dumps(args[0], ensure_ascii=False, separators=(",", ":"))
+                return json.dumps(args[0], ensure_ascii=False, separators=(",", ":"), allow_nan=False)
             except (TypeError, ValueError) as exc:
                 raise _error(f"No se puede serializar JSON: {exc}") from exc
 
         def pretty(_vm, *args):
             _arity("pretty", args, 1)
             try:
-                return json.dumps(args[0], ensure_ascii=False, indent=2)
+                return json.dumps(args[0], ensure_ascii=False, indent=2, allow_nan=False)
             except (TypeError, ValueError) as exc:
                 raise _error(f"No se puede serializar JSON: {exc}") from exc
 
         def load(vm, *args):
             _arity("load", args, 1)
-            from .native_stdlib import create_module
-            fs = create_module("filesystem", vm)["read"]
-            return parse(vm, fs(vm, args[0]))
+            path = Path(str(args[0])).expanduser()
+            if not path.is_absolute():
+                path = Path(vm.current_dir) / path
+            try:
+                return parse(vm, path.read_text(encoding="utf-8"))
+            except OSError as exc:
+                raise _error(f"No se pudo leer JSON {args[0]!r}: {exc}") from exc
 
         def save(vm, *args):
             _arity("save", args, 2)
-            from .native_stdlib import create_module
-            fs = create_module("filesystem", vm)["write"]
-            fs(vm, args[0], pretty(vm, args[1]))
+            path = Path(str(args[0])).expanduser()
+            if not path.is_absolute():
+                path = Path(vm.current_dir) / path
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(pretty(vm, args[1]), encoding="utf-8")
+            except OSError as exc:
+                raise _error(f"No se pudo guardar JSON {args[0]!r}: {exc}") from exc
             return True
 
         return {key: _wrap(key, fn) for key, fn in {
@@ -555,6 +578,13 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
                     value = None
                 else:
                     value = raw
+            if value is None:
+                if operator == "=":
+                    operator = "IS"
+                elif operator == "!=":
+                    operator = "IS NOT"
+                else:
+                    raise _error("null solo admite los operadores = y !=")
             return f" WHERE {identifier(field)} {operator} ?", [value]
 
         def connect(vm, *args):
@@ -676,7 +706,18 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
 
         def configure(_vm, *args):
             _arity("configure_smtp", args, 4)
-            config.update(host=str(args[0]), port=int(args[1]), username=str(args[2]), password=str(args[3]))
+            if isinstance(args[1], bool):
+                raise _error("El puerto SMTP debe ser un entero")
+            try:
+                port = int(args[1])
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise _error("El puerto SMTP debe ser un entero") from exc
+            if not 1 <= port <= 65535:
+                raise _error("El puerto SMTP debe estar entre 1 y 65535")
+            host = str(args[0]).strip()
+            if not host:
+                raise _error("El host SMTP no puede estar vacío")
+            config.update(host=host, port=port, username=str(args[2]), password=str(args[3]))
             return True
 
         def send_mail(recipient, subject, body, html=None, attachment=None):
@@ -836,9 +877,9 @@ def create_module(name: str, interpreter) -> Dict[str, Any]:
 
         def run(_vm, *args):
             _arity("iniciar", args, 2)
-            if not 0 < int(args[1]) < 65536:
+            if not isinstance(args[1], int) or isinstance(args[1], bool) or not 0 < args[1] < 65536:
                 raise _error("El puerto debe estar entre 1 y 65535")
-            args[0].run(host="127.0.0.1", port=int(args[1]))
+            args[0].run(host="127.0.0.1", port=args[1])
             return True
 
         return {"crear_app": _wrap("crear_app", create_app),

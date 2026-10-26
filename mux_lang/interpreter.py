@@ -34,7 +34,7 @@ class ModuleNamespace(dict):
     """A module's exported names, distinct from ordinary Mux dictionaries."""
 
 
-@dataclass
+@dataclass(eq=False)
 class FunctionValue:
     name: str
     params: List[str]
