@@ -139,6 +139,17 @@ class ReturnException(Exception):
         self.value = value
 
 
+class ThrownException(Exception):
+    """Internal control signal carrying a value raised by MUSHYRA code."""
+
+    def __init__(self, value, path, line, column, contexts):
+        self.value = value
+        self.path = path
+        self.line = line
+        self.column = column
+        self.contexts = tuple(contexts)
+
+
 class ExitException(Exception):
     def __init__(self, code: int):
         self.code = code
@@ -254,7 +265,28 @@ class Interpreter:
             raise self._located_error("continue fuera de un bucle") from exc
         except ReturnException as exc:
             raise self._located_error("return fuera de una función") from exc
+        except ThrownException as exc:
+            error = MushyraError(
+                self._exception_message(exc.value), exc.path, exc.line, exc.column,
+                cause=exc, code="MYR3001",
+            )
+            for context in exc.contexts:
+                error.add_context(context)
+            raise error from exc
         return None
+
+    def _exception_message(self, value):
+        if isinstance(value, str):
+            detail = value[:2048]
+            if len(value) > len(detail):
+                detail += "…"
+        elif value is None or isinstance(value, bool) or isinstance(value, float):
+            detail = self._stringify(value)
+        elif isinstance(value, int) and value.bit_length() <= 4096:
+            detail = str(value)
+        else:
+            detail = f"<{self._type_name(value)}>"
+        return f"Excepción no capturada: {detail}"
 
     def _located_error(self, message, cause=None):
         token = self.current_location
@@ -459,7 +491,8 @@ class Interpreter:
             if self.call_stack:
                 error.add_context(self.call_stack[-1].format())
             raise error from exc
-        except (BreakException, ContinueException, ReturnException, ExitException):
+        except (BreakException, ContinueException, ReturnException, ExitException,
+                ThrownException):
             raise
         except Exception as exc:
             error = self._located_error(f"Error de ejecución: {exc}", exc)
@@ -576,6 +609,36 @@ class Interpreter:
                 self._eval_block(body)
                 return
             self._eval_block(stmt[3])
+        elif kind == "try":
+            _, body, catches, finally_body = stmt
+            try:
+                try:
+                    self._eval_block(body)
+                except ThrownException as thrown:
+                    handled = False
+                    for pattern, guard, catch_body in catches:
+                        bindings = self._match_pattern(pattern, thrown.value)
+                        if bindings is None:
+                            continue
+                        self._charge_allocation(64 + 32 * len(bindings))
+                        snapshot = self._install_match_bindings(bindings)
+                        if guard is not None:
+                            try:
+                                guard_matches = ValueSemantics.truthy(self.eval_expression(guard))
+                            except BaseException:
+                                self._restore_match_bindings(snapshot)
+                                raise
+                            if not guard_matches:
+                                self._restore_match_bindings(snapshot)
+                                continue
+                        handled = True
+                        self._eval_block(catch_body)
+                        break
+                    if not handled:
+                        raise
+            finally:
+                if finally_body is not None:
+                    self._eval_block(finally_body)
         elif kind == "repeat":
             count = self.eval_expression(stmt[1])
             if not isinstance(count, int) or isinstance(count, bool) or count < 0:
@@ -640,6 +703,14 @@ class Interpreter:
             declared.update(stmt[1])
         elif kind == "return":
             raise ReturnException(self.eval_expression(stmt[1]) if stmt[1] is not None else None)
+        elif kind == "throw":
+            value = self._guard_value(self.eval_expression(stmt[1]))
+            location = self.current_location
+            contexts = (frame.format() for frame in reversed(self.call_stack))
+            raise ThrownException(
+                value, self.filename, location.line if location else None,
+                getattr(location, "column", None) if location else None, contexts,
+            )
         elif kind == "break":
             raise BreakException()
         elif kind == "continue":

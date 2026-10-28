@@ -27,6 +27,12 @@ def _block_children(statement):
         for _pattern, _guard, branch in statement[2]:
             yield branch
         yield statement[3]
+    elif kind == "try":
+        yield statement[1]
+        for _pattern, _guard, branch in statement[2]:
+            yield branch
+        if statement[3] is not None:
+            yield statement[3]
     elif kind in ("repeat", "while", "loop", "until", "unless"):
         yield statement[-1]
     elif kind in ("for", "each"):
@@ -62,6 +68,9 @@ def _collect_bindings(statements, params):
             elif kind in ("destructure_let", "destructure_assign"):
                 locals_.update(_pattern_names(statement[1]))
             elif kind == "match":
+                for pattern, _guard, _branch in statement[2]:
+                    locals_.update(_pattern_names(pattern))
+            elif kind == "try":
                 for pattern, _guard, _branch in statement[2]:
                     locals_.update(_pattern_names(pattern))
             elif kind in ("for", "each"):
@@ -114,6 +123,10 @@ def _statement_expressions(statement):
         return (statement[1],)
     if kind == "match":
         return (statement[1], *(guard for _pattern, guard, _body in statement[2] if guard is not None))
+    if kind == "try":
+        return tuple(guard for _pattern, guard, _body in statement[2] if guard is not None)
+    if kind == "throw":
+        return (statement[1],)
     if kind == "repeat":
         return (statement[1],)
     if kind in ("for", "each"):
@@ -206,6 +219,9 @@ def _module_bindings(statements, initial_names):
             elif kind in ("destructure_let", "destructure_assign"):
                 names.update(_pattern_names(statement[1]))
             elif kind == "match":
+                for pattern, _guard, _branch in statement[2]:
+                    names.update(_pattern_names(pattern))
+            elif kind == "try":
                 for pattern, _guard, _branch in statement[2]:
                     names.update(_pattern_names(pattern))
             elif kind in ("for", "each"):

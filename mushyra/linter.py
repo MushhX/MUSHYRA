@@ -87,12 +87,12 @@ def lint_ast(tree):
         for statement in statements:
             if terminated:
                 diagnostics.append(LintDiagnostic(
-                    "MYR101", "Código inalcanzable después de return, break, continue o exit",
+                    "MYR101", "Código inalcanzable después de return, break, continue, exit o throw",
                     span=getattr(statement, "span", None),
                 ))
                 break
             kind = statement[0]
-            if kind in ("return", "break", "continue", "exit"):
+            if kind in ("return", "break", "continue", "exit", "throw"):
                 terminated = True
             elif kind == "func":
                 inspect_block(statement[3])
@@ -106,13 +106,27 @@ def lint_ast(tree):
                 for pattern, guard, branch in statement[2]:
                     if catch_all_seen:
                         diagnostics.append(LintDiagnostic(
-                            "MYR105", "Cláusula case inalcanzable después de un patrón general",
+                            "MYR105", "Cláusula inalcanzable después de un patrón general",
                             span=getattr(pattern, "span", None),
                         ))
                     inspect_block(branch)
                     if guard is None and pattern[0] in ("pattern_name", "pattern_wildcard"):
                         catch_all_seen = True
                 inspect_block(statement[3])
+            elif kind == "try":
+                inspect_block(statement[1])
+                catch_all_seen = False
+                for pattern, guard, branch in statement[2]:
+                    if catch_all_seen:
+                        diagnostics.append(LintDiagnostic(
+                            "MYR105", "Cláusula inalcanzable después de un patrón general",
+                            span=getattr(pattern, "span", None),
+                        ))
+                    inspect_block(branch)
+                    if guard is None and pattern[0] in ("pattern_name", "pattern_wildcard"):
+                        catch_all_seen = True
+                if statement[3] is not None:
+                    inspect_block(statement[3])
             elif kind in ("repeat", "while", "loop", "until", "unless"):
                 inspect_block(statement[-1])
             elif kind in ("for", "each"):
@@ -171,6 +185,15 @@ def lint_ast(tree):
                             declaration_spans.setdefault(name, getattr(pattern, "span", None))
                         scan(branch)
                     scan(statement[3])
+                elif kind == "try":
+                    scan(statement[1])
+                    for pattern, _guard, branch in statement[2]:
+                        for name in pattern_names(pattern):
+                            declared.add(name)
+                            declaration_spans.setdefault(name, getattr(pattern, "span", None))
+                        scan(branch)
+                    if statement[3] is not None:
+                        scan(statement[3])
                 elif kind in ("repeat", "while", "loop", "until", "unless"):
                     scan(statement[-1])
 

@@ -3,8 +3,8 @@
 from .lexer import Lexer
 
 
-OPENERS = {"IF", "MATCH", "REPEAT", "WHILE", "FOR", "FUNC", "LOOP", "UNTIL", "UNLESS", "EACH"}
-CLOSERS = {"END", "ELSE", "ELIF"}
+OPENERS = {"IF", "MATCH", "TRY", "REPEAT", "WHILE", "FOR", "FUNC", "LOOP", "UNTIL", "UNLESS", "EACH"}
+CLOSERS = {"END", "ELSE", "ELIF", "CATCH", "FINALLY"}
 DELIMITER_PAIRS = {"LPAREN": "RPAREN", "LBRACKET": "RBRACKET", "LBRACE": "RBRACE"}
 DELIMITER_CLOSE = {value: key for key, value in DELIMITER_PAIRS.items()}
 

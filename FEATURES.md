@@ -7,11 +7,12 @@
 - Operadores aritméticos, comparación estricta, `&&`, `||` y `!` con evaluación corta.
 - `if`/`elif`/`else`, `match`/`case` con patrones y guardas, `repeat`, `N times [do]`, `while`, `for`, `each`, `until`, `unless` y `loop`.
 - `break` y `continue` en bucles; `pass`; funciones nombradas y anónimas (`lambda`), `return`, `global` y `nonlocal`.
+- Excepciones propias con `throw`, varios `catch` con patrones y guardas, y `finally`.
 - Llamadas `print`, `input`, `ask`, `len`, `type`, `str`, `int`, `float`, `range`, `assert`, `show`, `say`, `wait` y `exit`.
 - Imports completos, alias y `from ... import ...`.
 - Saltos de línea como separadores y `end` para cerrar bloques.
 
-El lenguaje todavía no incluye clases, excepciones propias, generadores, async/await ni un sistema de tipos estático.
+El lenguaje todavía no incluye clases, generadores, async/await ni un sistema de tipos estático.
 
 ## Intérprete y CLI
 
@@ -40,7 +41,7 @@ Incluye 21 módulos nativos: `math`, `random`, `sequence`, `path`, `csv`, `toml`
 
 ## Límites actuales
 
-- Clases/structs, excepciones propias, generadores, async/await, sistema de tipos estático y conjuntos/colas.
+- Clases/structs, generadores, async/await, sistema de tipos estático y conjuntos/colas.
 - Un registro público alojado y una clave de firma oficial requieren infraestructura y operación fuera del repositorio.
 - El modo sandbox es una restricción de capacidades dentro del intérprete, no aísla código hostil al nivel del sistema operativo.
 - El benchmark ofrece señales iniciales, no un profiler ni datos de pico de memoria.

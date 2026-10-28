@@ -15,7 +15,7 @@ Esta referencia describe la sintaxis que implementa el parser. Las columnas de l
 
 ```ebnf
 program       = { newline | statement newline } ;
-statement     = import | declaration | assignment | call | print | conditional | match_statement
+statement     = import | declaration | assignment | call | print | conditional | match_statement | try_statement | throw
               | loop | function | flow | assertion | display | pass ;
 import        = "import" module [ "as" identifier ]
               | "from" module "import" identifier [ "as" identifier ]
@@ -41,6 +41,9 @@ match_pattern = "_" | identifier | match_literal
 match_pattern_entry = identifier [ ":" match_pattern ] | match_key ":" match_pattern ;
 match_key     = string | number | boolean | "null" ;
 match_literal = match_key | "-" number ;
+try_statement = "try" block { "catch" match_pattern [ "if" expression ] block }
+                [ "finally" block ] "end" ;
+throw         = "throw" expression ;
 print         = "print" "(" expression ")" ;
 conditional   = "if" expression block { "elif" expression block }
                 [ "else" block ] "end"
@@ -100,3 +103,5 @@ Parentheses group expressions; a comma creates an immutable tuple, including the
 Sequence destructuring binds values after the complete pattern has been checked: `let [first, [second, third]] = values` or `let (first, second) = pair`. Dictionary patterns select named keys and can rename them: `let {name: person, age} = record` binds `record["name"]` to `person` and `record["age"]` to `age`; extra keys are allowed, but every requested key must exist. Assignment uses the same nested patterns without `let`. A sequence pattern must match its length exactly; lists, tuples, strings, and ranges can be unpacked. Slices use Python-style exclusive endpoints on lists, tuples, strings, and ranges, such as `items[1:4]`, `text[::-1]`, or `values[:limit:2]`. A slice can be assigned on the left side of an assignment only when the target is a list; the replacement must be a sequence, and extended slices must have the same length as the selected elements.
 
 `match expression` selects the first matching `case pattern`, with an optional `if` guard, and may finish with `else`; one `end` closes the whole match. A bare name captures the subject, `_` ignores it, literals compare by MUSHYRA value semantics, sequence patterns require the same length, and dictionary patterns require their listed keys while allowing extra keys. Captures become variables in the current lexical scope only after the pattern and guard succeed. Captures from a failed guard are discarded.
+
+`throw expression` raises a MUSHYRA value. `try` can have multiple `catch pattern` clauses with optional guards and an optional `finally`; it must have at least one `catch` or `finally`. The first matching catch runs, and its captures use the same scope and rollback rules as `match`. `finally` runs when control leaves the try body or a catch, including for `return`, loop control, and another thrown value. Only values raised by `throw` are caught; interpreter and host errors remain runtime diagnostics. An uncaught thrown value becomes a `MYR3001` diagnostic.

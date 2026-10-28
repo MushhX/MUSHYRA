@@ -29,7 +29,7 @@ let nombre = ask("¿Cómo te llamas?")
 print(saludar(nombre))
 ```
 
-MUSHYRA admite variables `let`, números, strings, booleanos y `null`; listas y diccionarios; funciones con retorno; condicionales; `repeat`, `N times`, `while`, `for`, `each`, `until` y `loop`; y `break`/`continue` dentro de bucles. Las expresiones lógicas usan `&&`, `||` y `!`. Las instrucciones se separan por saltos de línea y los bloques terminan con `end`.
+MUSHYRA admite variables `let`, números, strings, booleanos y `null`; listas y diccionarios; funciones con retorno; condicionales y `match`/`case`; excepciones propias con `throw`, `catch` y `finally`; `repeat`, `N times`, `while`, `for`, `each`, `until` y `loop`; y `break`/`continue` dentro de bucles. Las expresiones lógicas usan `&&`, `||` y `!`. Las instrucciones se separan por saltos de línea y los bloques terminan con `end`.
 
 ## CLI
 
@@ -53,6 +53,8 @@ Los errores muestran archivo, línea y columna, y las trazas incluyen ubicación
 Para usar diagnósticos y navegación en VS Code, instala MUSHYRA y abre `editors/vscode` como extensión de desarrollo. El servidor integrado se inicia con `myr --lsp`; no requiere dependencias de terceros.
 
 Empieza una aplicación con `myr init mi-proyecto --template app` o una biblioteca con `myr init mi-biblioteca --template library`; ejecuta el ejemplo con `myr mi-proyecto/main.myr`.
+
+El ejemplo `examples/exceptions.myr` muestra cómo lanzar un valor, filtrarlo con patrones y guardas `catch`, y ejecutar `finally` al salir de una función.
 
 Consulta [CONFIGURATION.md](CONFIGURATION.md) para las claves y prioridades.
 

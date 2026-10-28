@@ -17,10 +17,11 @@ La versión publicada más reciente es 2.0.0. Esta lista separa las capacidades 
 - Argumentos de función por defecto, con nombre y variádicos; tuplas, desempaquetado de patrones y slices.
 - Funciones anónimas `lambda` con expresiones, cierres léxicos y validación estática de nombres.
 - `match`/`case` con captura de nombres, patrones literales y de colecciones, guardas y `else`.
+- Excepciones propias mediante `throw`, patrones y guardas `catch`, y `finally` con ejecución ante cualquier salida de control.
 
 ## Siguientes áreas
 
-- Decidir semántica y compatibilidad de clases, excepciones propias, generadores y concurrencia del lenguaje; `lambda` ya está incorporado.
+- Definir semántica compatible para clases/structs, generadores y concurrencia del lenguaje; `lambda` y excepciones propias ya están incorporadas.
 - Evaluar bytecode/VM únicamente después de medir el árbol de ejecución con cargas representativas.
 - Publicar un índice operado por el proyecto y gestionar su raíz de confianza y rotación de claves.
 - Ampliar telemetría opt-in y documentación de rendimiento sin recopilar datos por defecto.

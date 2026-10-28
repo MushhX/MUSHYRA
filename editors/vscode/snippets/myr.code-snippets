@@ -31,6 +31,19 @@
     ],
     "description": "Select a branch by matching a value"
   },
+  "Try/catch/finally": {
+    "prefix": "try",
+    "body": [
+      "try",
+      "    $1",
+      "catch ${2:error}",
+      "    $3",
+      "finally",
+      "    $0",
+      "end"
+    ],
+    "description": "Handle a thrown value and always run cleanup"
+  },
   "For loop": {
     "prefix": "for",
     "body": [

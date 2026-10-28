@@ -1,0 +1,15 @@
+func safe_ratio(numerator, denominator)
+    try
+        if denominator == 0
+            throw {"kind": "division", "value": denominator}
+        end
+        return numerator / denominator
+    catch {"kind": "division", "value": value} if value == 0
+        return null
+    finally
+        print("ratio calculation finished")
+    end
+end
+
+print(safe_ratio(12, 3))
+print(safe_ratio(12, 0))
